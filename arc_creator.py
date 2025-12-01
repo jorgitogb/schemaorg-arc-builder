@@ -13,10 +13,11 @@ class ARCCreator:
         """Initialize ARC creator.
         
         Args:
-            rocrate_path: Path to ro-crate-metadata.json
+            rocrate_path: Path to ro-crate-metadata.json file
         """
-        self.rocrate_path = Path(rocrate_path)
-        self.output_dir = self.rocrate_path.parent
+        self.rocrate_path = rocrate_path
+        self.output_dir = rocrate_path.parent
+        self.arc_identifier = None
         
     def create_arc(self) -> ARC:
         """Create ARC from RO-Crate metadata using ARCtrl.
@@ -53,6 +54,8 @@ class ARCCreator:
                     # Replace spaces and special characters with underscores
                     new_identifier = title.replace(' ', '_').replace('/', '_').replace('\\', '_')
                     arc.ISA.Identifier = new_identifier
+                    # Store identifier for ARC directory naming
+                    self.arc_identifier = new_identifier
                 
                 # Add DOI as comment
                 original_identifier = investigation_entity.get('identifier', '')
@@ -143,13 +146,14 @@ class ARCCreator:
         
         Args:
             arc: ARC object to write
-            arc_name: Name for the ARC directory (default: use parent directory name)
+            arc_name: Name for the ARC directory (default: use identifier)
         """
         if arc_name is None:
-            arc_name = self.output_dir.name
+            # Use identifier if available, otherwise use parent directory name
+            arc_name = self.arc_identifier or self.output_dir.name
         
-        # Define ARC output path
-        arc_path = self.output_dir / 'arc'
+        # Define ARC output path using identifier as directory name
+        arc_path = self.output_dir / arc_name
         
         # Write ARC using ARCtrl
         arc.Write(str(arc_path))

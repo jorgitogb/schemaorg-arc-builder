@@ -149,10 +149,13 @@ class GitLabSubmitter:
             branch: Branch name
             commit_message: Commit message for all files
         """
-        # Collect all files to upload
+        # Collect all files to upload (including subdirectories)
         files_to_upload = []
         for file_path in directory.rglob('*'):
-            if file_path.is_file() and not file_path.name.startswith('.'):
+            if file_path.is_file():
+                # Skip hidden files, Excel temp files, and .gitkeep files
+                if file_path.name.startswith('.') or file_path.name.startswith('~$'):
+                    continue
                 # Get relative path from directory
                 relative_path = file_path.relative_to(directory)
                 files_to_upload.append((file_path, str(relative_path).replace('\\', '/')))
