@@ -1,0 +1,244 @@
+"""
+GitLab submission module for ARC repositories.
+
+This module handles the submission of ARC (Annotated Research Context) 
+directories to GitLab repositories using the GitLab API.
+"""
+
+import os
+import base64
+from pathlib import Path
+from typing import Optional, Dict, Any
+from urllib.parse import quote
+import requests
+from dotenv import load_dotenv
+
+
+class GitLabSubmitter:
+    """Handle ARC submission to GitLab repositories."""
+    
+    def __init__(self, config_path: Optional[str] = None):
+        """
+        Initialize GitLab submitter with configuration.
+        
+        Args:
+            config_path: Path to .env file. If None, loads from current directory.
+        """
+        # Load environment variables
+        if config_path:
+            load_dotenv(config_path)
+        else:
+            load_dotenv()
+        
+        # Get configuration from environment
+        self.gitlab_url = os.getenv('GITLAB_URL')
+        self.private_token = os.getenv('GITLAB_PRIVATE_TOKEN')
+        self.namespace_id = os.getenv('GITLAB_NAMESPACE_ID')
+        self.group_id = os.getenv('GITLAB_GROUP_ID')
+        
+        # Validate required configuration
+        if not all([self.gitlab_url, self.private_token, self.namespace_id]):
+            raise ValueError(
+                "Missing required GitLab configuration. "
+                "Please set GITLAB_URL, GITLAB_PRIVATE_TOKEN, and GITLAB_NAMESPACE_ID "
+                "in your .env file."
+            )
+        
+        # Convert namespace_id to int (already validated as non-None)
+        self.namespace_id = int(self.namespace_id)  # type: ignore
+        
+        # Setup API headers
+        self.headers = {
+            'PRIVATE-TOKEN': self.private_token,
+            'Content-Type': 'application/json'
+        }
+        
+        self.api_base = f"{self.gitlab_url}/api/v4"
+    
+    def create_project(self, name: str, description: str = "", 
+                      visibility: str = "private") -> Dict[str, Any]:
+        """
+        Create a new GitLab project.
+        
+        Args:
+            name: Project name
+            description: Project description
+            visibility: Project visibility (private, internal, public)
+        
+        Returns:
+            Project data from GitLab API
+        """
+        url = f"{self.api_base}/projects"
+        data = {
+            "name": name,
+            "description": description,
+            "namespace_id": self.namespace_id,
+            "visibility": visibility,
+            "initialize_with_readme": False
+        }
+        
+        response = requests.post(url, headers=self.headers, json=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def project_exists(self, project_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Check if a project exists in the namespace.
+        
+        Args:
+            project_name: Name of the project to check
+        
+        Returns:
+            Project data if exists, None otherwise
+        """
+        # URL encode the project path
+        project_path = f"{self.namespace_id}/{project_name}"
+        url = f"{self.api_base}/projects/{quote(project_path, safe='')}"
+        
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+    
+    def upload_file(self, project_id: int, file_path: Path, 
+                   repo_path: str, branch: str = "main",
+                   commit_message: str = "Add file") -> Dict[str, Any]:
+        """
+        Upload a single file to GitLab repository.
+        
+        Args:
+            project_id: GitLab project ID
+            file_path: Local path to file
+            repo_path: Path in repository where file should be stored
+            branch: Branch name
+            commit_message: Commit message
+        
+        Returns:
+            Response from GitLab API
+        """
+        url = f"{self.api_base}/projects/{project_id}/repository/files/{quote(repo_path, safe='')}"
+        
+        # Read file content and encode to base64
+        with open(file_path, 'rb') as f:
+            content = base64.b64encode(f.read()).decode('utf-8')
+        
+        data = {
+            "branch": branch,
+            "content": content,
+            "commit_message": commit_message,
+            "encoding": "base64"
+        }
+        
+        response = requests.post(url, headers=self.headers, json=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def upload_directory(self, project_id: int, directory: Path, 
+                        branch: str = "main",
+                        commit_message: str = "Add ARC structure") -> None:
+        """
+        Upload an entire directory structure to GitLab.
+        
+        Args:
+            project_id: GitLab project ID
+            directory: Local directory to upload
+            branch: Branch name
+            commit_message: Commit message for all files
+        """
+        # Collect all files to upload
+        files_to_upload = []
+        for file_path in directory.rglob('*'):
+            if file_path.is_file() and not file_path.name.startswith('.'):
+                # Get relative path from directory
+                relative_path = file_path.relative_to(directory)
+                files_to_upload.append((file_path, str(relative_path).replace('\\', '/')))
+        
+        print(f"Uploading {len(files_to_upload)} files to GitLab...")
+        
+        # Upload files one by one
+        for i, (local_path, repo_path) in enumerate(files_to_upload, 1):
+            try:
+                self.upload_file(
+                    project_id=project_id,
+                    file_path=local_path,
+                    repo_path=repo_path,
+                    branch=branch,
+                    commit_message=f"{commit_message}: {repo_path}"
+                )
+                print(f"  [{i}/{len(files_to_upload)}] Uploaded: {repo_path}")
+            except Exception as e:
+                print(f"  ✗ Failed to upload {repo_path}: {e}")
+    
+    def submit_arc(self, arc_directory: Path, project_name: Optional[str] = None,
+                   description: str = "", overwrite: bool = False) -> Dict[str, Any]:
+        """
+        Submit an ARC directory to GitLab.
+        
+        Args:
+            arc_directory: Path to ARC directory
+            project_name: GitLab project name (defaults to directory name)
+            description: Project description
+            overwrite: If True, delete and recreate existing project
+        
+        Returns:
+            Project information
+        """
+        if not arc_directory.exists():
+            raise FileNotFoundError(f"ARC directory not found: {arc_directory}")
+        
+        # Use directory name as project name if not specified
+        if project_name is None:
+            project_name = arc_directory.name
+        
+        print(f"Submitting ARC to GitLab: {project_name}")
+        
+        # Check if project exists
+        existing_project = self.project_exists(project_name)
+        
+        if existing_project:
+            if not overwrite:
+                raise ValueError(
+                    f"Project '{project_name}' already exists in GitLab. "
+                    "Use overwrite=True to replace it."
+                )
+            print(f"  Deleting existing project: {project_name}")
+            self.delete_project(existing_project['id'])
+        
+        # Create new project
+        print(f"  Creating GitLab project: {project_name}")
+        project = self.create_project(
+            name=project_name,
+            description=description,
+            visibility="private"
+        )
+        
+        print(f"  ✓ Project created: {project['web_url']}")
+        
+        # Upload ARC directory
+        self.upload_directory(
+            project_id=project['id'],
+            directory=arc_directory,
+            branch="main",
+            commit_message="Add ARC structure"
+        )
+        
+        print("\n✓ ARC submitted successfully!")
+        print(f"  Project URL: {project['web_url']}")
+        print(f"  Project ID: {project['id']}")
+        
+        return project
+    
+    def delete_project(self, project_id: int) -> None:
+        """
+        Delete a GitLab project.
+        
+        Args:
+            project_id: GitLab project ID
+        """
+        url = f"{self.api_base}/projects/{project_id}"
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()

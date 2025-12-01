@@ -1,10 +1,10 @@
 # Schema.org to ISA RO-Crate Parser
 
-Parse Schema.org JSON-LD metadata into ISA (Investigation/Study/Assay) RO-Crate structure.
+Parse Schema.org JSON-LD metadata into ISA (Investigation/Study/Assay) RO-Crate structure and submit to GitLab as ARC repositories.
 
 ## Overview
 
-This tool converts Schema.org metadata (in JSON-LD format) into RO-Crate following the ISA model. It handles various JSON-LD structures that can represent the same information and normalizes them into a consistent RO-Crate format.
+This tool converts Schema.org metadata (in JSON-LD format) into RO-Crate following the ISA model, generates ARCs (Annotated Research Contexts) using ARCtrl, and can submit them to GitLab repositories. It handles various JSON-LD structures that can represent the same information and normalizes them into a consistent RO-Crate format.
 
 ## Features
 
@@ -111,9 +111,79 @@ json_ld = builder.to_json()
 }
 ```
 
+## ARC Generation
+
+Generate an ARC from the RO-Crate:
+
+```bash
+python arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
+```
+
+This creates:
+
+- `arc/isa.investigation.xlsx` - Investigation Excel file
+- `arc/studies/` - Study directories
+- `arc/assays/` - Assay directories
+- `arc/arc_structure.json` - ARC structure metadata
+
+## GitLab Submission
+
+### Setup Credentials
+
+1. Create a `.env` file (never commit this!):
+
+```bash
+cp .env.example .env
+```
+
+1. Edit `.env` with your GitLab credentials:
+
+```env
+GITLAB_URL=https://your-gitlab-instance.com
+GITLAB_PRIVATE_TOKEN=your-private-token
+GITLAB_NAMESPACE_ID=55
+GITLAB_GROUP_ID=55
+```
+
+### Submit ARC to GitLab
+
+```bash
+# Submit an ARC to GitLab
+python gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project
+
+# Overwrite existing project
+python gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project --overwrite
+
+# Add description
+python gitlab_submit.py output_crates/edal_arc/arc \
+  --name my-arc-project \
+  --description "Rice genome dataset ARC"
+```
+
+### Python API for GitLab
+
+```python
+from gitlab_submitter import GitLabSubmitter
+from pathlib import Path
+
+# Initialize with credentials from .env
+submitter = GitLabSubmitter()
+
+# Submit ARC
+project = submitter.submit_arc(
+    arc_directory=Path("output_crates/edal_arc/arc"),
+    project_name="my-arc-project",
+    description="My research ARC",
+    overwrite=True
+)
+
+print(f"ARC submitted: {project['web_url']}")
+```
+
 ## Output
 
 The parser generates an RO-Crate directory with:
+
 - `ro-crate-metadata.json`: The RO-Crate metadata file
 - Properly structured entities following ISA patterns
 
@@ -121,7 +191,7 @@ The parser generates an RO-Crate directory with:
 
 Project structure:
 
-```
+```text
 schemaorg_rocrate_parser/
 ├── __init__.py           # Package exports
 ├── parser.py             # JSON-LD parser
