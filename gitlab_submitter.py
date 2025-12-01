@@ -193,12 +193,15 @@ class GitLabSubmitter:
         files_to_upload = []
         for file_path in directory.rglob('*'):
             if file_path.is_file():
-                # Skip hidden files, Excel temp files
-                if file_path.name.startswith('.') or file_path.name.startswith('~$'):
+                # Skip Excel temp files only (keep .gitkeep and other hidden files)
+                if file_path.name.startswith('~$'):
                     continue
                 # Get relative path from directory
                 relative_path = file_path.relative_to(directory)
                 files_to_upload.append((file_path, str(relative_path).replace('\\', '/')))
+        
+        # Sort files to ensure .gitkeep files are created first to establish directory structure
+        files_to_upload.sort(key=lambda x: (0 if x[1].endswith('.gitkeep') else 1, x[1]))
         
         print(f"Uploading {len(files_to_upload)} files to GitLab in a single commit...")
         
