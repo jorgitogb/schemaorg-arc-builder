@@ -64,6 +64,23 @@ Environment Configuration:
         # Initialize GitLab submitter
         submitter = GitLabSubmitter(config_path=args.env)
         
+        # If no name provided, extract Investigation Identifier from isa.investigation.xlsx
+        project_name = args.name
+        if not project_name:
+            investigation_file = args.arc_directory / 'isa.investigation.xlsx'
+            if investigation_file.exists():
+                try:
+                    import openpyxl
+                    wb = openpyxl.load_workbook(investigation_file)
+                    ws = wb['isa_investigation']
+                    # Investigation Identifier is in cell B7
+                    identifier = ws['B7'].value
+                    if identifier:
+                        project_name = identifier
+                        print(f"Using Investigation Identifier as project name: {project_name}")
+                except Exception as e:
+                    print(f"Warning: Could not read Investigation Identifier: {e}")
+        
         # Submit ARC
         project = submitter.submit_arc(
             arc_directory=args.arc_directory,
