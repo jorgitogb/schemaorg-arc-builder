@@ -254,6 +254,24 @@ class ISAROCrateBuilder:
         # Create a Study from the dataset
         self._add_study_from_dataset(dataset)
     
+    def _sanitize_identifier(self, identifier: str) -> str:
+        """Sanitize identifier to contain only allowed characters.
+        
+        ARCtrl allows: letters, digits, underscore (_), dash (-), and whitespace ( )
+        
+        Args:
+            identifier: Original identifier
+            
+        Returns:
+            Sanitized identifier
+        """
+        # Replace forbidden characters with underscore
+        # Common forbidden: . / : \ etc
+        import re
+        # Keep only alphanumeric, underscore, dash, and space
+        sanitized = re.sub(r'[^a-zA-Z0-9_\- ]', '_', identifier)
+        return sanitized
+    
     def _add_study_from_dataset(self, dataset: Dict[str, Any]):
         """Create a Study entity from the dataset.
         
@@ -267,6 +285,9 @@ class ISAROCrateBuilder:
         if isinstance(identifier, dict):
             identifier = identifier.get('value', 'study')
         
+        # Sanitize identifier for ARCtrl compatibility
+        identifier = self._sanitize_identifier(identifier)
+        
         study_id = f"studies/{identifier}/"
         
         name = self._extract_first_value(dataset.get('name', 'Study'))
@@ -275,6 +296,7 @@ class ISAROCrateBuilder:
         # Create Study entity
         from rocrate.model.contextentity import ContextEntity
         study_props = {
+            '@type': 'Dataset',
             'additionalType': 'Study',
             'identifier': identifier,
             'name': name,
@@ -336,10 +358,14 @@ class ISAROCrateBuilder:
         if isinstance(identifier, dict):
             identifier = identifier.get('value', 'assay')
         
+        # Sanitize identifier for ARCtrl compatibility
+        identifier = self._sanitize_identifier(identifier)
+        
         assay_id = f"assays/{identifier}/"
         
         from rocrate.model.contextentity import ContextEntity
         assay_props = {
+            '@type': 'Dataset',
             'additionalType': 'Assay',
             'identifier': identifier,
         }

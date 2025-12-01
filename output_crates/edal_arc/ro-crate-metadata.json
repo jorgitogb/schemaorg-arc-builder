@@ -22,10 +22,10 @@
             "description": "Vergleichende Proteinanalyse ('shot gun') zwischen Pollenembryogenese nach K\u00e4ltestress-Induktion und gametophytischer Entwicklung von Hordeum vulgare. Replikat 1 der Untersuchung.",
             "hasPart": [
                 {
-                    "@id": "assays/10.5447/ipk/2012/1/"
+                    "@id": "assays/10_5447_ipk_2012_1/"
                 },
                 {
-                    "@id": "studies/10.5447/ipk/2012/1/"
+                    "@id": "studies/10_5447_ipk_2012_1/"
                 }
             ],
             "identifier": "10.5447/ipk/2012/1",
@@ -68,8 +68,8 @@
             "name": "e!DAL - Plant Genomics and Phenomics Research Data Repository (PGP), IPK Gatersleben"
         },
         {
-            "@id": "studies/10.5447/ipk/2012/1/",
-            "@type": "Thing",
+            "@id": "studies/10_5447_ipk_2012_1/",
+            "@type": "Dataset",
             "additionalType": "Study",
             "creator": [
                 {
@@ -77,14 +77,14 @@
                 }
             ],
             "description": "Vergleichende Proteinanalyse ('shot gun') zwischen Pollenembryogenese nach K\u00e4ltestress-Induktion und gametophytischer Entwicklung von Hordeum vulgare. Replikat 1 der Untersuchung.",
-            "identifier": "10.5447/ipk/2012/1",
+            "identifier": "10_5447_ipk_2012_1",
             "name": "Physiologische und bioanalytische Untersuchungen w\u00e4hrend der Pollenembryogenese von Hordeum vulgare"
         },
         {
-            "@id": "assays/10.5447/ipk/2012/1/",
-            "@type": "Thing",
+            "@id": "assays/10_5447_ipk_2012_1/",
+            "@type": "Dataset",
             "additionalType": "Assay",
-            "identifier": "10.5447/ipk/2012/1"
+            "identifier": "10_5447_ipk_2012_1"
         }
     ]
 }

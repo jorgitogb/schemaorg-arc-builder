@@ -55,22 +55,52 @@ class GitLabSubmitter:
         
         self.api_base = f"{self.gitlab_url}/api/v4"
     
+    def _sanitize_project_name(self, name: str) -> str:
+        """
+        Sanitize project name for GitLab compatibility.
+        
+        GitLab has restrictions on project names. This method ensures
+        the name is valid by converting to lowercase and replacing
+        special characters with hyphens.
+        
+        Args:
+            name: Original project name
+            
+        Returns:
+            Sanitized project name
+        """
+        import re
+        # Convert to lowercase, replace spaces and special chars with hyphens
+        sanitized = re.sub(r'[^a-z0-9_-]', '-', name.lower())
+        # Remove consecutive hyphens
+        sanitized = re.sub(r'-+', '-', sanitized)
+        # Remove leading/trailing hyphens
+        sanitized = sanitized.strip('-')
+        # Limit length (GitLab has a 255 char limit)
+        if len(sanitized) > 100:
+            sanitized = sanitized[:100].rstrip('-')
+        return sanitized
+    
     def create_project(self, name: str, description: str = "", 
                       visibility: str = "private") -> Dict[str, Any]:
         """
         Create a new GitLab project.
         
         Args:
-            name: Project name
+            name: Project name (will be sanitized for GitLab)
             description: Project description
             visibility: Project visibility (private, internal, public)
         
         Returns:
             Project data from GitLab API
         """
+        # Sanitize the project name for GitLab path
+        sanitized_name = self._sanitize_project_name(name)
+        
         url = f"{self.api_base}/projects"
         data = {
-            "name": name,
+            "name": name,  # Keep original name as display name
+            "path": sanitized_name,  # Use sanitized name as path
             "description": description,
             "namespace_id": self.namespace_id,
             "visibility": visibility,
@@ -78,7 +108,14 @@ class GitLabSubmitter:
         }
         
         response = requests.post(url, headers=self.headers, json=data)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            # Print error details for debugging
+            print(f"Error creating project: {e}")
+            if response.text:
+                print(f"Response: {response.text}")
+            raise
         return response.json()
     
     def project_exists(self, project_name: str) -> Optional[Dict[str, Any]]:
@@ -86,13 +123,16 @@ class GitLabSubmitter:
         Check if a project exists in the namespace.
         
         Args:
-            project_name: Name of the project to check
+            project_name: Name of the project to check (will be sanitized)
         
         Returns:
             Project data if exists, None otherwise
         """
+        # Sanitize the project name to match what would be created
+        sanitized_name = self._sanitize_project_name(project_name)
+        
         # URL encode the project path
-        project_path = f"{self.namespace_id}/{project_name}"
+        project_path = f"{self.namespace_id}/{sanitized_name}"
         url = f"{self.api_base}/projects/{quote(project_path, safe='')}"
         
         try:
