@@ -181,7 +181,7 @@ class GitLabSubmitter:
                         branch: str = "main",
                         commit_message: str = "Add ARC structure") -> None:
         """
-        Upload an entire directory structure to GitLab.
+        Upload an entire directory structure to GitLab in a single commit.
         
         Args:
             project_id: GitLab project ID
@@ -193,28 +193,46 @@ class GitLabSubmitter:
         files_to_upload = []
         for file_path in directory.rglob('*'):
             if file_path.is_file():
-                # Skip hidden files, Excel temp files, and .gitkeep files
+                # Skip hidden files, Excel temp files
                 if file_path.name.startswith('.') or file_path.name.startswith('~$'):
                     continue
                 # Get relative path from directory
                 relative_path = file_path.relative_to(directory)
                 files_to_upload.append((file_path, str(relative_path).replace('\\', '/')))
         
-        print(f"Uploading {len(files_to_upload)} files to GitLab...")
+        print(f"Uploading {len(files_to_upload)} files to GitLab in a single commit...")
         
-        # Upload files one by one
-        for i, (local_path, repo_path) in enumerate(files_to_upload, 1):
-            try:
-                self.upload_file(
-                    project_id=project_id,
-                    file_path=local_path,
-                    repo_path=repo_path,
-                    branch=branch,
-                    commit_message=f"{commit_message}: {repo_path}"
-                )
-                print(f"  [{i}/{len(files_to_upload)}] Uploaded: {repo_path}")
-            except Exception as e:
-                print(f"  ✗ Failed to upload {repo_path}: {e}")
+        # Prepare actions for commit API
+        actions = []
+        for local_path, repo_path in files_to_upload:
+            # Read file content and encode to base64
+            with open(local_path, 'rb') as f:
+                content = base64.b64encode(f.read()).decode('utf-8')
+            
+            actions.append({
+                "action": "create",
+                "file_path": repo_path,
+                "content": content,
+                "encoding": "base64"
+            })
+        
+        # Use Commits API to upload all files in one commit
+        url = f"{self.api_base}/projects/{project_id}/repository/commits"
+        data = {
+            "branch": branch,
+            "commit_message": commit_message,
+            "actions": actions
+        }
+        
+        try:
+            response = requests.post(url, headers=self.headers, json=data)
+            response.raise_for_status()
+            print(f"  ✓ Successfully committed {len(files_to_upload)} files")
+        except requests.exceptions.HTTPError as e:
+            print(f"  ✗ Failed to commit files: {e}")
+            if response.text:
+                print(f"  Response: {response.text}")
+            raise
     
     def submit_arc(self, arc_directory: Path, project_name: Optional[str] = None,
                    description: str = "", overwrite: bool = False) -> Dict[str, Any]:
