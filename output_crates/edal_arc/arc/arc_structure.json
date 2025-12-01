@@ -1,0 +1,85 @@
+{
+  "investigation": {
+    "identifier": "10.5447/ipk/2012/1",
+    "title": "Physiologische und bioanalytische Untersuchungen während der Pollenembryogenese von Hordeum vulgare",
+    "description": "Vergleichende Proteinanalyse ('shot gun') zwischen Pollenembryogenese nach Kältestress-Induktion und gametophytischer Entwicklung von Hordeum vulgare. Replikat 1 der Untersuchung.",
+    "submissionDate": "Sun Jan 01 00:00:00 CET 2012",
+    "publicReleaseDate": "Sun Jan 01 00:00:00 CET 2012",
+    "ontologySourceReferences": [],
+    "publications": [],
+    "contacts": [
+      {
+        "lastName": "Lippmann",
+        "firstName": "Rico",
+        "midInitials": "",
+        "email": "",
+        "phone": "",
+        "fax": "",
+        "address": "Leibniz Institute of Plant Genetics and Crop Plant Research (IPK), Seeland OT Gatersleben, Corrensstraße 3, D-06466, Germany",
+        "affiliation": "",
+        "roles": [
+          "author"
+        ]
+      },
+      {
+        "lastName": "Lippmann",
+        "firstName": "Rico",
+        "midInitials": "",
+        "email": "",
+        "phone": "",
+        "fax": "",
+        "address": "Leibniz Institute of Plant Genetics and Crop Plant Research (IPK), Seeland OT Gatersleben, Corrensstraße 3, D-06466, Germany",
+        "affiliation": "",
+        "roles": [
+          "author"
+        ]
+      }
+    ],
+    "studies": [
+      "10.5447/ipk/2012/1"
+    ]
+  },
+  "studies": {
+    "10.5447/ipk/2012/1": {
+      "identifier": "10.5447/ipk/2012/1",
+      "title": "Physiologische und bioanalytische Untersuchungen während der Pollenembryogenese von Hordeum vulgare",
+      "description": "Vergleichende Proteinanalyse ('shot gun') zwischen Pollenembryogenese nach Kältestress-Induktion und gametophytischer Entwicklung von Hordeum vulgare. Replikat 1 der Untersuchung.",
+      "submissionDate": "",
+      "publicReleaseDate": "",
+      "contacts": [
+        {
+          "lastName": "Lippmann",
+          "firstName": "Rico",
+          "midInitials": "",
+          "email": "",
+          "phone": "",
+          "fax": "",
+          "address": "Leibniz Institute of Plant Genetics and Crop Plant Research (IPK), Seeland OT Gatersleben, Corrensstraße 3, D-06466, Germany",
+          "affiliation": "",
+          "roles": [
+            "author"
+          ]
+        }
+      ],
+      "studyDesignDescriptors": [],
+      "publications": [],
+      "factors": [],
+      "assays": [
+        "10.5447/ipk/2012/1"
+      ]
+    }
+  },
+  "assays": {
+    "10.5447/ipk/2012/1": {
+      "identifier": "10.5447/ipk/2012/1",
+      "fileName": "assays/10.5447/ipk/2012/1/isa.assay.xlsx",
+      "measurementType": "",
+      "technologyType": "",
+      "technologyPlatform": "",
+      "characteristics": [],
+      "dataFiles": []
+    }
+  },
+  "runs": {},
+  "workflows": {}
+}
