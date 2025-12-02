@@ -238,7 +238,8 @@ class GitLabSubmitter:
             raise
     
     def submit_arc(self, arc_directory: Path, project_name: Optional[str] = None,
-                   description: str = "", overwrite: bool = False) -> Dict[str, Any]:
+                   description: str = "", overwrite: bool = False,
+                   branch: str = "main") -> Dict[str, Any]:
         """
         Submit an ARC directory to GitLab.
         
@@ -247,6 +248,7 @@ class GitLabSubmitter:
             project_name: GitLab project name (defaults to directory name)
             description: Project description
             overwrite: If True, delete and recreate existing project
+            branch: Branch name to commit to (default: main)
         
         Returns:
             Project information
@@ -282,11 +284,24 @@ class GitLabSubmitter:
         
         print(f"  ✓ Project created: {project['web_url']}")
         
+        # Create branch if not main
+        if branch != "main":
+            print(f"  Creating branch: {branch}")
+            branch_url = f"{self.api_base}/projects/{project['id']}/repository/branches"
+            branch_data = {"branch": branch, "ref": "main"}
+            try:
+                branch_response = requests.post(branch_url, headers=self.headers, json=branch_data)
+                branch_response.raise_for_status()
+                print(f"  ✓ Branch created: {branch}")
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code != 400:  # Branch might already exist
+                    raise
+        
         # Upload ARC directory
         self.upload_directory(
             project_id=project['id'],
             directory=arc_directory,
-            branch="main",
+            branch=branch,
             commit_message="Add ARC structure"
         )
         

@@ -3,7 +3,7 @@
 import argparse
 import json
 from pathlib import Path
-from arctrl.arc import ARC
+from arctrl import ARC
 
 
 class ARCCreator:
@@ -35,38 +35,37 @@ class ARCCreator:
         
         # ARCtrl's from_rocrate_json_string doesn't automatically map date fields
         # So we need to manually set them from the RO-Crate metadata
-        if arc.ISA:
-            investigation_entity = next(
-                (e for e in rocrate_data.get('@graph', []) if e.get('@id') == './'),
-                None
-            )
+        investigation_entity = next(
+            (e for e in rocrate_data.get('@graph', []) if e.get('@id') == './'),
+            None
+        )
+        
+        if investigation_entity:
+            # Set dates if they exist in the RO-Crate
+            if 'submissionDate' in investigation_entity:
+                arc.SubmissionDate = investigation_entity['submissionDate']
+            if 'publicReleaseDate' in investigation_entity:
+                arc.PublicReleaseDate = investigation_entity['publicReleaseDate']
+                
+            # Change identifier to title with underscores
+            title = investigation_entity.get('name', '')
+            if title:
+                # Replace spaces and special characters with underscores
+                new_identifier = title.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                arc.Identifier = new_identifier
+                # Store identifier for ARC directory naming
+                self.arc_identifier = new_identifier
             
-            if investigation_entity:
-                # Set dates if they exist in the RO-Crate
-                if 'submissionDate' in investigation_entity:
-                    arc.ISA.SubmissionDate = investigation_entity['submissionDate']
-                if 'publicReleaseDate' in investigation_entity:
-                    arc.ISA.PublicReleaseDate = investigation_entity['publicReleaseDate']
-                
-                # Change identifier to title with underscores
-                title = investigation_entity.get('name', '')
-                if title:
-                    # Replace spaces and special characters with underscores
-                    new_identifier = title.replace(' ', '_').replace('/', '_').replace('\\', '_')
-                    arc.ISA.Identifier = new_identifier
-                    # Store identifier for ARC directory naming
-                    self.arc_identifier = new_identifier
-                
-                # Add DOI as comment
-                original_identifier = investigation_entity.get('identifier', '')
-                if original_identifier:
-                    from arctrl.Core.comment import Comment
-                    doi_comment = Comment.create('DOI', original_identifier)
-                    arc.ISA.Comments.append(doi_comment)
-                
-                # Handle Organization creators (ARCtrl only maps Person, not Organization)
-                # Convert Organizations to Person contacts
-                self._add_organization_contacts(arc, investigation_entity, rocrate_data)
+            # Add DOI as comment
+            original_identifier = investigation_entity.get('identifier', '')
+            if original_identifier:
+                from arctrl import Comment
+                doi_comment = Comment('DOI', original_identifier)
+                arc.Comments.append(doi_comment)
+            
+            # Handle Organization creators (ARCtrl only maps Person, not Organization)
+            # Convert Organizations to Person contacts
+            self._add_organization_contacts(arc, investigation_entity, rocrate_data)
         
         return arc
     
@@ -78,7 +77,7 @@ class ARCCreator:
             investigation_entity: Investigation entity from RO-Crate
             rocrate_data: Complete RO-Crate data
         """
-        from arctrl.Core.person import Person
+        from arctrl import Person
         
         # Get all graph entities for lookup
         entities_by_id = {e.get('@id'): e for e in rocrate_data.get('@graph', [])}
@@ -125,7 +124,7 @@ class ARCCreator:
                         last_name = org_name
                     
                     # Create a Person with the organization as affiliation
-                    person = Person.create(
+                    person = Person(
                         last_name=last_name,
                         first_name=first_name,
                         mid_initials='',
@@ -137,8 +136,8 @@ class ARCCreator:
                     )
                     
                     # Add to Investigation contacts if not already present
-                    if person not in arc.ISA.Contacts:
-                        arc.ISA.Contacts.append(person)
+                    if person not in arc.Contacts:
+                        arc.Contacts.append(person)
 
     
     def write_arc(self, arc: ARC, arc_name: str | None = None):
