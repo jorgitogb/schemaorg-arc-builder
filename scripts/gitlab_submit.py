@@ -53,6 +53,13 @@ Environment Configuration:
     )
     
     parser.add_argument(
+        '--branch',
+        type=str,
+        default='main',
+        help='Branch name to commit to (default: main)'
+    )
+    
+    parser.add_argument(
         '--env',
         type=str,
         help='Path to .env file (defaults to .env in current directory)'
@@ -86,7 +93,8 @@ Environment Configuration:
             arc_directory=args.arc_directory,
             project_name=args.name,
             description=args.description,
-            overwrite=args.overwrite
+            overwrite=args.overwrite,
+            branch=args.branch
         )
         
         print("\n✓ Success! ARC is now available at:")
