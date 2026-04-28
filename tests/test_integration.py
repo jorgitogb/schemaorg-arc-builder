@@ -3,7 +3,7 @@
 import json
 import pytest
 from pathlib import Path
-from schemaorg_rocrate_parser import SchemaOrgParser, ISAROCrateBuilder
+from schemaorg_arc_builder import SchemaOrgParser, ISAROCrateBuilder
 
 
 class TestFullPipeline:

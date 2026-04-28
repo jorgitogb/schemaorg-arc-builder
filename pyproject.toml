@@ -1,5 +1,5 @@
 [project]
-name = "schemaorg-rocrate-parser"
+name = "schemaorg-arc-builder"
 version = "0.1.0"
 description = "Parse schema.org JSON-LD metadata into ISA RO-Crate structure"
 readme = "README.md"
@@ -25,7 +25,7 @@ dev = [
 ]
 
 [project.scripts]
-schemaorg-rocrate-parser = "schemaorg_rocrate_parser.__main__:main"
+schemaorg-arc-builder = "schemaorg_arc_builder.__main__:main"
 
 [dependency-groups]
 dev = [
@@ -34,7 +34,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["schemaorg_rocrate_parser*"]
+include = ["schemaorg_arc_builder*"]
 
 [tool.uv]
 package = true

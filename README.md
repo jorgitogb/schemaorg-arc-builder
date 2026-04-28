@@ -55,7 +55,7 @@ schemaorg-rocrate-parser examples/bonares.json --json
 ### Python API
 
 ```python
-from schemaorg_rocrate_parser import SchemaOrgParser, ISAROCrateBuilder
+from schemaorg_arc_builder import SchemaOrgParser, ISAROCrateBuilder
 
 # Parse Schema.org JSON-LD
 parser = SchemaOrgParser()
@@ -163,7 +163,7 @@ python scripts/gitlab_submit.py output_crates/edal_arc/arc \
 ### Python API for GitLab
 
 ```python
-from schemaorg_rocrate_parser import GitLabSubmitter
+from schemaorg_arc_builder import GitLabSubmitter
 from pathlib import Path
 
 # Initialize with credentials from .env
@@ -192,8 +192,8 @@ The parser generates an RO-Crate directory with:
 Project structure:
 
 ```text
-schemaorg_rocrate_parser/
-├── schemaorg_rocrate_parser/
+schemaorg_arc_builder/
+├── schemaorg_arc_builder/
 │   ├── __init__.py           # Package exports
 │   ├── __main__.py           # CLI entry point
 │   ├── parser.py             # JSON-LD parser

@@ -6,7 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
-from schemaorg_rocrate_parser import ISAROCrateBuilder, SchemaOrgParser
+from schemaorg_arc_builder import ISAROCrateBuilder, SchemaOrgParser
 
 logger = logging.getLogger(__name__)
 

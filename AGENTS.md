@@ -1,4 +1,4 @@
-# AGENTS.md — schemaorg_rocrate_parser
+# AGENTS.md — schemaorg-arc-builder
 
 > Guidance for AI coding agents (Claude Code, Codex, Cursor, etc.) working on this repository.
 
@@ -24,7 +24,7 @@
 
 ## Project Overview
 
-`schemaorg_rocrate_parser` converts **Schema.org JSON-LD** metadata into **ISA RO-Crate** structures and optionally submits them to **GitLab as ARCs** (Annotated Research Contexts).
+`schemaorg-arc-builder` converts **Schema.org JSON-LD** metadata into **ISA RO-Crate** structures and optionally submits them to **GitLab as ARCs** (Annotated Research Contexts).
 
 The domain is scientific research data management. The three main standards in play are:
 
@@ -45,7 +45,7 @@ The domain is scientific research data management. The three main standards in p
 JSON-LD file
      │
      ▼
-[SchemaOrgParser]          schemaorg_rocrate_parser/parser.py
+[SchemaOrgParser]          schemaorg_arc_builder/parser.py
   • Normalizes @graph, single entity, and array forms
   • Classifies entities: datasets / persons / organizations / publications / other
   • Resolves PropertyValue identifiers, dates, PostalAddress, ContactPoint
@@ -53,7 +53,7 @@ JSON-LD file
      ▼  parsed_data dict (datasets, persons, organizations, publications, other)
      │
      ▼
-[ISAROCrateBuilder]        schemaorg_rocrate_parser/rocrate_builder.py
+[ISAROCrateBuilder]        schemaorg_arc_builder/rocrate_builder.py
   • Builds an RO-Crate (via `rocrate` library)
   • Maps Dataset → Investigation + Study (+ optional Assay)
   • Maps Person / Organization → rocrate entities
@@ -80,8 +80,8 @@ JSON-LD file
 ## Directory Map
 
 ```
-schemaorg_rocrate_parser/
-├── schemaorg_rocrate_parser/
+schemaorg_arc_builder/
+├── schemaorg_arc_builder/
 │   ├── __init__.py              # Public API: SchemaOrgParser, ISAROCrateBuilder
 │   ├── __main__.py              # CLI entry point (python -m or schemaorg-rocrate-parser)
 │   ├── parser.py                # Layer 1 — JSON-LD → normalized dict

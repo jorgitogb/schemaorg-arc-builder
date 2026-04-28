@@ -1,7 +1,7 @@
 """Tests for ISAROCrateBuilder."""
 
 import pytest
-from schemaorg_rocrate_parser import SchemaOrgParser, ISAROCrateBuilder
+from schemaorg_arc_builder import SchemaOrgParser, ISAROCrateBuilder
 
 
 class TestROCratesBuilder:

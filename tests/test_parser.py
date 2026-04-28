@@ -1,7 +1,7 @@
 """Tests for SchemaOrgParser."""
 
 import pytest
-from schemaorg_rocrate_parser import SchemaOrgParser
+from schemaorg_arc_builder import SchemaOrgParser
 
 
 class TestParserBasic:
