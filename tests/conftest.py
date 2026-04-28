@@ -45,6 +45,26 @@ def plabipd_json():
 
 
 @pytest.fixture
+def bonares_json():
+    """Return path to bonares example JSON file."""
+    return EXAMPLES_DIR / "bonares.json"
+
+@pytest.fixture
+def edal_json():
+    """Return path to edal example JSON file."""
+    return EXAMPLES_DIR / "edal.json"
+
+@pytest.fixture
+def openagrar_json():
+    """Return path to openagrar example JSON file."""
+    return EXAMPLES_DIR / "openagrar.json"
+
+@pytest.fixture
+def plabipd_json():
+    """Return path to plabipd example JSON file."""
+    return EXAMPLES_DIR / "plabipd.json"
+
+@pytest.fixture
 def publisso_json():
     """Return path to publisso example JSON file."""
-    return EXAMPLES_DIR / "example_publisso.json"
+    return EXAMPLES_DIR / "publisso.json"

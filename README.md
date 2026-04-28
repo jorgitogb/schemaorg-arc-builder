@@ -43,13 +43,13 @@ pip install -e .
 Parse a JSON-LD file and create an RO-Crate:
 
 ```bash
-python main.py examples/example_edal.json -o output-crate
+schemaorg-rocrate-parser examples/edal.json -o output-crate
 ```
 
 Output JSON-LD to stdout:
 
 ```bash
-python main.py examples/example_bonares.json --json
+schemaorg-rocrate-parser examples/bonares.json --json
 ```
 
 ### Python API
@@ -116,7 +116,7 @@ json_ld = builder.to_json()
 Generate an ARC from the RO-Crate:
 
 ```bash
-python arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
+python scripts/arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
 ```
 
 This creates:
@@ -149,13 +149,13 @@ GITLAB_GROUP_ID=55
 
 ```bash
 # Submit an ARC to GitLab
-python gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project
+python scripts/gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project
 
 # Overwrite existing project
-python gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project --overwrite
+python scripts/gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project --overwrite
 
 # Add description
-python gitlab_submit.py output_crates/edal_arc/arc \
+python scripts/gitlab_submit.py output_crates/edal_arc/arc \
   --name my-arc-project \
   --description "Rice genome dataset ARC"
 ```
@@ -163,7 +163,7 @@ python gitlab_submit.py output_crates/edal_arc/arc \
 ### Python API for GitLab
 
 ```python
-from gitlab_submitter import GitLabSubmitter
+from schemaorg_rocrate_parser import GitLabSubmitter
 from pathlib import Path
 
 # Initialize with credentials from .env
@@ -193,9 +193,18 @@ Project structure:
 
 ```text
 schemaorg_rocrate_parser/
-├── __init__.py           # Package exports
-├── parser.py             # JSON-LD parser
-└── rocrate_builder.py    # RO-Crate builder
+├── schemaorg_rocrate_parser/
+│   ├── __init__.py           # Package exports
+│   ├── __main__.py           # CLI entry point
+│   ├── parser.py             # JSON-LD parser
+│   └── rocrate_builder.py    # RO-Crate builder
+├── scripts/
+│   ├── arc_creator.py       # ARC creation from RO-Crate
+│   ├── gitlab_submitter.py  # GitLab push
+│   └── gitlab_submit.py     # CLI wrapper
+├── examples/                 # JSON-LD input examples
+├── tests/                    # pytest suite
+└── pyproject.toml
 ```
 
 ## Requirements

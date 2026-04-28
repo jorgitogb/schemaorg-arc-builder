@@ -83,6 +83,7 @@ JSON-LD file
 schemaorg_rocrate_parser/
 ├── schemaorg_rocrate_parser/
 │   ├── __init__.py              # Public API: SchemaOrgParser, ISAROCrateBuilder
+│   ├── __main__.py              # CLI entry point (python -m or schemaorg-rocrate-parser)
 │   ├── parser.py                # Layer 1 — JSON-LD → normalized dict
 │   └── rocrate_builder.py       # Layer 2 — dict → RO-Crate
 ├── scripts/
@@ -91,9 +92,8 @@ schemaorg_rocrate_parser/
 │   └── gitlab_submit.py        # CLI wrapper for gitlab_submitter
 ├── examples/                    # Real-world JSON-LD input examples
 ├── output_crates/               # Committed example outputs (DO NOT delete)
-├── tests/                       # Currently debug scripts, not a pytest suite
+├── tests/                       # pytest suite: test_*.py, conftest.py
 ├── assets/                      # Images for README
-├── main.py                      # CLI entry point
 └── pyproject.toml
 ```
 
@@ -311,69 +311,11 @@ Goal: e.g. support `schema:Grant`, `schema:Event`, `schema:SoftwareApplication`.
 
 These are real problems identified in the current codebase. Any agent may address them, each as its own focused branch.
 
-### TD-1: Inline imports in `rocrate_builder.py` (`refactor/move-imports-to-top`)
-
-**Files**: `rocrate_builder.py` — `_sanitize_identifier`, `_add_study_from_dataset`, `_add_assay_from_dataset`, `_add_person`, `_add_organization`.  
-**Problem**: `import re` and `from rocrate.model...` are placed inside methods. This violates PEP 8 and causes repeated import overhead.  
-**Fix**: Move all imports to the top of the file.
-
-### TD-2: No `@id` reference resolution (`feat/graph-reference-resolver`)
-
-**File**: `parser.py` — `_parse_graph`.  
-**Problem**: When a JSON-LD graph uses `{"@id": "#person1"}` as a reference in one entity pointing to a full person entity elsewhere in the graph, the parser does not resolve it. The reference is returned as-is rather than being linked to the full parsed person entity.  
-**Fix**: After the first pass of `_parse_graph`, build an `id_index: Dict[str, Dict]` from all parsed entities. Then do a second pass to resolve `{"@id": "..."}` references to their full entity dicts. This unlocks proper cross-entity linking.
-
 ### TD-3: Duplicate person detection (`fix/duplicate-person-dedup`)
 
 **File**: `parser.py`.  
 **Problem**: `example_edal.json` contains the same person twice (same name, different address format). The parser creates two separate Person entities with slightly different synthetic IDs.  
 **Fix**: Add deduplication logic in `_parse_person` — before generating a synthetic ID, check `self.all_persons` for an existing entry with the same `givenName` + `familyName` combination and merge rather than duplicate.
-
-### TD-4: No pytest suite (`test/add-pytest-suite`)
-
-**Directory**: `tests/`.  
-**Problem**: `tests/` contains only manual debug scripts. There are zero automated tests.  
-**Fix**: Create `tests/conftest.py`, `tests/test_parser.py`, `tests/test_rocrate_builder.py`, `tests/test_integration.py` with coverage for all 5 example inputs.
-
-### TD-5: No CI/CD (`chore/add-github-actions`)
-
-**Problem**: No `.github/workflows/` directory. PRs are not automatically tested.  
-**Fix**: Add a `ci.yml` workflow that runs `uv sync && uv run pytest tests/ -v` on push and pull_request to `main`. Consider adding `ruff` linting and `mypy` type checking steps.
-
-### TD-6: Missing CLI entry point (`improve/cli-entry-point`)
-
-**File**: `pyproject.toml`.  
-**Problem**: `main.py` exists but is not registered as a package script. Users must call `python main.py` instead of the cleaner `schemaorg-rocrate-parser`.  
-**Fix**:
-```toml
-[project.scripts]
-schemaorg-rocrate-parser = "schemaorg_rocrate_parser.__main__:main"
-```
-Then rename `main.py` to `schemaorg_rocrate_parser/__main__.py` and update imports.
-
-### TD-7: No logging framework (`improve/add-logging`)
-
-**Problem**: All status output uses bare `print()`. There is no way to control verbosity, redirect output, or filter by severity.  
-**Fix**: Replace all `print()` in `parser.py`, `rocrate_builder.py`, `scripts/`, and `main.py` with `logging.getLogger(__name__)`. Add a `--verbose` / `--quiet` flag to the CLI.
-
-### TD-8: Commented-out funding/Grant handling (`feat/grant-entity-support`)
-
-**File**: `rocrate_builder.py` lines ~195–210.  
-**Problem**: A `funding` / `schema:Grant` block is commented out because Grant objects need special handling. This means funding information is silently dropped from the output.  
-**Fix**: Implement the Grant entity as a first-class entity type (see "Adding a New Entity Type" workflow). Uncomment and rework the funding block.
-
-### TD-9: No input validation (`improve/validation-layer`)
-
-**Problem**: Malformed or non-Schema.org JSON-LD silently produces an empty or partial output. There is no check that the input is actually a Schema.org document.  
-**Fix**: In `parser.py`, after loading, check that `@context` is or contains `"https://schema.org"` or `"http://schema.org"`. Raise a clear `ValueError` otherwise. Optionally validate against the Bioschemas Dataset profile if `conformsTo` is present.
-
-### TD-10: No license in `pyproject.toml` (`docs/add-license`)
-
-**Problem**: `pyproject.toml` and `README.md` both say "Add your license here".  
-**Fix**: Choose a license (MIT is common for research tools), add `LICENSE` file, and update `pyproject.toml`:
-```toml
-license = {text = "MIT"}
-```
 
 ---
 

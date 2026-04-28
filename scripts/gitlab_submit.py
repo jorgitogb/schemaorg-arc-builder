@@ -34,6 +34,7 @@ Environment Configuration:
     parser.add_argument(
         'arc_directory',
         type=Path,
+        nargs='?',  # Make optional
         help='Path to ARC directory to submit'
     )
     

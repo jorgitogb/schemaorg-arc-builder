@@ -16,6 +16,9 @@ wheels/
 .env.prod
 
 # Local output directories
+output/
+output_crates/edal-*/
+output_crates/thunen*/
 output_crates/*_out/
 output_crates/arc/
 output_crates/*/arc/

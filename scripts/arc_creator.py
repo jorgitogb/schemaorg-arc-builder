@@ -51,22 +51,13 @@ class ARCCreator:
             if 'publicReleaseDate' in investigation_entity:
                 arc.PublicReleaseDate = investigation_entity['publicReleaseDate']
                 
-            # Change identifier to title with underscores
-            title = investigation_entity.get('name', '')
-            if title:
-                # Replace spaces and special characters with underscores
-                new_identifier = title.replace(' ', '_').replace('/', '_').replace('\\', '_')
-                arc.Identifier = new_identifier
-                # Store identifier for ARC directory naming
-                self.arc_identifier = new_identifier
-            
             # Add DOI as comment
             original_identifier = investigation_entity.get('identifier', '')
             if original_identifier:
                 from arctrl import Comment
                 doi_comment = Comment('DOI', original_identifier)
                 arc.Comments.append(doi_comment)
-            
+                
             # Handle Organization creators (ARCtrl only maps Person, not Organization)
             # Convert Organizations to Person contacts
             self._add_organization_contacts(arc, investigation_entity, rocrate_data)
@@ -151,19 +142,15 @@ class ARCCreator:
             arc: ARC object to write
             arc_name: Name for the ARC directory (default: use identifier)
         """
-        if arc_name is None:
-            # Use identifier if available, otherwise use parent directory name
-            arc_name = self.arc_identifier or self.output_dir.name
-        
-        # Define ARC output path using identifier as directory name
-        arc_path = self.output_dir / arc_name
-        
+        # Write ARC directly to output_dir (not a subdirectory)
+        arc_path = self.output_dir
+
         # Write ARC using ARCtrl
         arc.Write(str(arc_path))
         
         logger.info(f"ARC written to: {arc_path}")
         logger.info(f"  Investigation: {arc_path / 'isa.investigation.xlsx'}")
-
+        
         studies_dir = arc_path / 'studies'
         if studies_dir.exists():
             study_count = len(list(studies_dir.iterdir()))

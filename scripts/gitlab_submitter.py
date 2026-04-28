@@ -199,6 +199,9 @@ class GitLabSubmitter:
                 # Skip Excel temp files only (keep .gitkeep and other hidden files)
                 if file_path.name.startswith('~$'):
                     continue
+                # Skip ro-crate-metadata.json - we only want ARC structure
+                if file_path.name == 'ro-crate-metadata.json':
+                    continue
                 # Get relative path from directory
                 relative_path = file_path.relative_to(directory)
                 files_to_upload.append((file_path, str(relative_path).replace('\\', '/')))
