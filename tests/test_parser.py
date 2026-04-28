@@ -75,11 +75,11 @@ class TestParserExamples:
     """Test parsing all example files."""
 
     @pytest.mark.parametrize("example_file", [
-        "example_bonares.json",
-        "example_edal.json",
-        "example_openagrar.json",
-        "example_plabipd.json",
-        "example_publisso.json",
+        "bonares.json",
+        "edal.json",
+        "openagrar.json",
+        "plabipd.json",
+        "publisso.json",
     ])
     def test_parse_all_examples(self, examples_dir, example_file):
         """Parse each example file and verify non-empty result."""
@@ -92,3 +92,58 @@ class TestParserExamples:
             for key in ["datasets", "persons", "organizations"]
         )
         assert has_data, f"No data found in {example_file}"
+
+
+class TestParserGrant:
+    """Grant parsing tests."""
+
+    def test_parse_grant(self):
+        """Parse a Grant entity, verify extraction of name/identifier/funder."""
+        parser = SchemaOrgParser()
+        result = parser.parse({
+            "@type": "Grant",
+            "name": "NSF Grant 12345",
+            "identifier": "NSF-12345",
+            "funder": {"@id": "#org1", "@type": "Organization", "name": "NSF"}
+        })
+
+        grants = result["grants"]
+        assert len(grants) == 1
+        grant = grants[0]
+        assert grant["name"] == "NSF Grant 12345"
+        assert grant["identifier"] == "NSF-12345"
+        assert "funder" in grant
+
+
+class TestParserValidation:
+    """Input validation tests."""
+
+    def test_invalid_context_raises(self):
+        """@context without schema.org or bioschemas.org should raise ValueError."""
+        parser = SchemaOrgParser()
+        with pytest.raises(ValueError, match="@context does not appear"):
+            parser.parse({"@context": "https://example.com", "@type": "Dataset"})
+
+    def test_missing_graph_raises(self):
+        """Input with no @type or @graph should raise ValueError."""
+        parser = SchemaOrgParser()
+        with pytest.raises(ValueError, match="no @type or @graph"):
+            parser.parse({"name": "oops"})
+
+    def test_invalid_type_raises(self):
+        """Non-dict/non-list input should raise ValueError."""
+        parser = SchemaOrgParser()
+        with pytest.raises(ValueError, match="Input must be a JSON object or array"):
+            parser.parse(123)
+
+    def test_valid_schema_context_passes(self):
+        """https://schema.org should pass validation."""
+        parser = SchemaOrgParser()
+        result = parser.parse({"@context": "https://schema.org", "@type": "Dataset", "name": "X"})
+        assert len(result["datasets"]) == 1
+
+    def test_valid_bioschemas_context_passes(self):
+        """https://bioschemas.org should pass validation."""
+        parser = SchemaOrgParser()
+        result = parser.parse({"@context": "https://bioschemas.org", "@type": "Dataset", "name": "X"})
+        assert len(result["datasets"]) == 1

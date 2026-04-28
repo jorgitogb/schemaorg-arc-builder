@@ -50,3 +50,24 @@ class TestROCratesBuilder:
         # Find organization in the crate
         orgs = [e for e in crate.get_entities() if e.type == "Organization"]
         assert len(orgs) >= 1
+
+    def test_add_grant(self):
+        """Add a Grant entity, verify it appears in crate with @type: Grant."""
+        builder = ISAROCrateBuilder()
+        grant_data = {
+            '@id': '#grant1',
+            'name': 'Test Grant',
+            'identifier': 'GRANT-001',
+            'description': 'A test grant'
+        }
+        result = builder._add_grant(grant_data)
+
+        assert result is not None
+        assert result['@id'] == '#grant1'
+
+        crate_json = builder.to_json()
+        graph = crate_json['@graph']
+        grant_entities = [e for e in graph if e.get('@id') == '#grant1']
+        assert len(grant_entities) == 1
+        assert grant_entities[0]['@type'] == 'Grant'
+        assert grant_entities[0]['name'] == 'Test Grant'

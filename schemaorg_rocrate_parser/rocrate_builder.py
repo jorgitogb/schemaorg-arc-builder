@@ -1,7 +1,8 @@
 """Build ISA RO-Crate from parsed Schema.org metadata."""
 
 import re
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from rocrate.model.contextentity import ContextEntity
 from rocrate.model.person import Person
@@ -40,7 +41,12 @@ class ISAROCrateBuilder:
         if parsed_data.get('organizations'):
             for org in parsed_data['organizations']:
                 self._add_organization(org)
-        
+
+        # Add Grants
+        if parsed_data.get('grants'):
+            for grant in parsed_data['grants']:
+                self._add_grant(grant)
+
         # Add Publications
         if parsed_data.get('publications'):
             for pub in parsed_data['publications']:
@@ -50,8 +56,93 @@ class ISAROCrateBuilder:
         if parsed_data.get('datasets'):
             for dataset in parsed_data['datasets']:
                 self._add_investigation(dataset)
-        
+
         return self.crate
+
+    def build_single_dataset(self, dataset: Dict[str, Any], shared_entities: Dict[str, List]) -> ROCrate:
+        """Build one RO-Crate from a single dataset.
+
+        Args:
+            dataset: Single dataset dict from parser
+            shared_entities: Pre-built entities (persons, orgs, grants, publications)
+
+        Returns:
+            One ROCrate object
+        """
+        # Fresh crate for each dataset
+        self.crate = ROCrate()
+        self.added_entities = {}
+        self.studies = []
+        self.assays = []
+
+        # Add shared entities (deduplicated via added_entities)
+        for person in shared_entities.get('persons', []):
+            self._add_person(person)
+        for org in shared_entities.get('organizations', []):
+            self._add_organization(org)
+        for grant in shared_entities.get('grants', []):
+            self._add_grant(grant)
+        for pub in shared_entities.get('publications', []):
+            self._add_publication(pub)
+
+        # Build investigation from this single dataset
+        self._add_investigation(dataset)
+
+        return self.crate
+
+    def generate_arc_name(self, filename: str, dataset: Dict[str, Any]) -> tuple[str, str]:
+        """Generate deterministic names for directory and GitLab.
+
+        Args:
+            filename: Source JSON-LD filename (with or without path)
+            dataset: Dataset dict
+
+        Returns:
+            Tuple of (directory_name, gitlab_project_name)
+        """
+        # Get filename stem (without path and extension)
+        base_name = Path(filename).stem  # "example_edal"
+
+        # Get dataset identifier
+        dataset_id = self._extract_dataset_identifier(dataset)
+
+        # Directory name: readable, replace / : . with _
+        dir_id = re.sub(r'[/:.]', '_', dataset_id)
+        dir_id = re.sub(r'[^a-zA-Z0-9_\-]', '', dir_id)
+        dir_name = f"{base_name}-{dir_id}"[:100]
+
+        # GitLab name: lowercase, hyphens
+        gitlab_name = base_name.lower()
+        gitlab_name = re.sub(r'[^a-z0-9\-_]', '-', gitlab_name)
+        gitlab_name = f"{gitlab_name}-{dataset_id.lower()}"
+        gitlab_name = re.sub(r'[^a-z0-9\-]', '-', gitlab_name)
+        gitlab_name = re.sub(r'-+', '-', gitlab_name).strip('-')[:100]
+
+        return dir_name, gitlab_name
+
+    def _extract_dataset_identifier(self, dataset: Dict[str, Any]) -> str:
+        """Extract unique identifier from dataset."""
+        # Try @id first (skip local references)
+        ds_id = dataset.get('@id', '')
+        if ds_id and not ds_id.startswith('#'):
+            return str(ds_id)
+
+        # Try identifier field
+        identifier = dataset.get('identifier', '')
+        if isinstance(identifier, list) and identifier:
+            first = identifier[0]
+            if isinstance(first, dict) and first.get('@type') == 'PropertyValue':
+                return str(first.get('value', ''))
+            return str(first)
+        elif isinstance(identifier, dict):
+            if identifier.get('@type') == 'PropertyValue':
+                return str(identifier.get('value', ''))
+            return str(identifier)
+        elif isinstance(identifier, str):
+            return identifier
+
+        # Fallback: name
+        return dataset.get('name', 'dataset')
     
     def _add_investigation(self, dataset: Dict[str, Any]):
         """Add Investigation entity to RO-Crate root dataset.
@@ -211,22 +302,45 @@ class ISAROCrateBuilder:
             if funder_refs:
                 props['funder'] = funder_refs
         
-        # Handle funding - skip for now as Grant objects need special handling
-        # if dataset.get('funding'):
-        #     funding_data = dataset['funding']
-        #     if isinstance(funding_data, list):
-        #         # Simplify funding to just keep funder references
-        #         funding_list = []
-        #         for fund in funding_data:
-        #             if isinstance(fund, dict):
-        #                 if fund.get('funder'):
-        #                     funding_list.append({'funder': fund['funder']})
-        #         if funding_list:
-        #             props['funding'] = funding_list
-        #     else:
-        #         if isinstance(funding_data, dict) and funding_data.get('funder'):
-        #             props['funding'] = {'funder': funding_data['funder']}
-        
+        # Handle funding - add Grant entities and reference them
+        if dataset.get('funding'):
+            funding_data = dataset['funding']
+            funding_refs = []
+
+            if isinstance(funding_data, list):
+                for fund in funding_data:
+                    if isinstance(fund, dict):
+                        # If it's a full Grant object, add it and reference
+                        grant_type = fund.get('@type', '')
+                        if 'Grant' in grant_type:
+                            grant_entity = self._add_grant(fund)
+                            if grant_entity:
+                                funding_refs.append(grant_entity)
+                        # If it's a reference (already processed Grant), use as-is
+                        elif fund.get('@id'):
+                            funding_refs.append({'@id': fund['@id']})
+                        # Otherwise assume it's a funder reference
+                        else:
+                            funding_refs.append(fund)
+                    else:
+                        funding_refs.append(fund)
+            elif isinstance(funding_data, dict):
+                # Single grant object
+                grant_type = funding_data.get('@type', '')
+                if 'Grant' in grant_type:
+                    grant_entity = self._add_grant(funding_data)
+                    if grant_entity:
+                        funding_refs.append(grant_entity)
+                elif funding_data.get('@id'):
+                    funding_refs.append({'@id': funding_data['@id']})
+                else:
+                    funding_refs.append(funding_data)
+            else:
+                funding_refs.append(funding_data)
+
+            if funding_refs:
+                props['funding'] = funding_refs
+
         # Handle distribution
         if dataset.get('distribution'):
             props['distribution'] = dataset['distribution']
@@ -550,7 +664,45 @@ class ISAROCrateBuilder:
         entity_ref = {'@id': org_id}
         self.added_entities[org_id] = entity_ref
         return entity_ref
-    
+
+    def _add_grant(self, grant_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Add Grant entity to RO-Crate.
+
+        Args:
+            grant_data: Grant metadata
+
+        Returns:
+            Reference to the Grant entity
+        """
+        grant_id = grant_data.get('@id', '')
+        if not grant_id:
+            name = grant_data.get('name', 'Unknown')
+            grant_id = f"#Grant_{name.replace(' ', '_')[:50]}"
+
+        if grant_id in self.added_entities:
+            return self.added_entities[grant_id]
+
+        props: Dict[str, Any] = {
+            '@type': 'Grant',
+            'name': grant_data.get('name', ''),
+        }
+
+        if grant_data.get('identifier'):
+            props['identifier'] = grant_data['identifier']
+        if grant_data.get('url'):
+            props['url'] = grant_data['url']
+        if grant_data.get('description'):
+            props['description'] = grant_data['description']
+        if grant_data.get('funder'):
+            props['funder'] = grant_data['funder']
+
+        entity = ContextEntity(self.crate, grant_id, properties=props)
+        self.crate.add(entity)
+
+        entity_ref = {'@id': grant_id}
+        self.added_entities[grant_id] = entity_ref
+        return entity_ref
+
     def _add_defined_term(self, term_data: Dict[str, Any]) -> Dict[str, str]:
         """Add DefinedTerm entity to RO-Crate.
         

@@ -2,10 +2,13 @@
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
 from schemaorg_rocrate_parser import ISAROCrateBuilder, SchemaOrgParser
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -29,45 +32,97 @@ def main():
         action="store_true",
         help="Output JSON-LD to stdout instead of writing to disk"
     )
-    
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable debug output"
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress normal output"
+    )
+
     args = parser.parse_args()
-    
-    # Validate input file
+
+    if args.quiet:
+        level = logging.WARNING
+    elif args.verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
+
     input_path = Path(args.input)
     if not input_path.exists():
-        print(f"Error: Input file '{args.input}' not found", file=sys.stderr)
+        logger.error(f"Input file '{args.input}' not found")
         sys.exit(1)
-    
+
     try:
-        # Parse Schema.org JSON-LD
-        print(f"Parsing Schema.org metadata from: {args.input}")
+        logger.info(f"Parsing Schema.org metadata from: {args.input}")
         schemaorg_parser = SchemaOrgParser()
         parsed_data = schemaorg_parser.parse_file(input_path)
-        
-        # Debug: show parsed data
-        # print(f"DEBUG - Parsed data: {json.dumps(parsed_data, indent=2)}")
-        
-        # Build ISA RO-Crate
-        print("Building ISA RO-Crate...")
+
+        datasets = parsed_data.get('datasets', [])
+        num_datasets = len(datasets)
+
+        if num_datasets == 0:
+            logger.error("No datasets found in input file")
+            sys.exit(1)
+
+        # Prepare shared entities (persons, orgs, grants, publications)
+        shared_entities = {
+            'persons': parsed_data.get('persons', []),
+            'organizations': parsed_data.get('organizations', []),
+            'grants': parsed_data.get('grants', []),
+            'publications': parsed_data.get('publications', [])
+        }
+
+        output_base = Path(args.output)
         builder = ISAROCrateBuilder()
-        crate = builder.build_from_parsed_data(parsed_data)
-        
-        if args.json:
-            # Output as JSON-LD
-            print("\nRO-Crate JSON-LD:")
-            print(json.dumps(builder.to_json(), indent=2))
+
+        if num_datasets == 1:
+            # Single dataset - original behavior
+            logger.info("Building ISA RO-Crate for single dataset...")
+            crate = builder.build_single_dataset(datasets[0], shared_entities)
+
+            if args.json:
+                print(json.dumps(builder.to_json(), indent=2))
+            else:
+                builder.save(str(output_base))
+                logger.info(f"RO-Crate written to: {output_base}")
+                logger.info(f"  Metadata: {output_base / 'ro-crate-metadata.json'}")
         else:
-            # Write to disk
-            output_path = Path(args.output)
-            builder.save(str(output_path))
-            print(f"✓ RO-Crate written to: {output_path}")
-            print(f"  - Metadata: {output_path / 'ro-crate-metadata.json'}")
-        
+            # Multiple datasets - create subdirectory per dataset
+            logger.info(f"Building {num_datasets} ARCs from {num_datasets} datasets...")
+
+            for i, dataset in enumerate(datasets):
+                # Generate deterministic names
+                dir_name, gitlab_name = builder.generate_arc_name(args.input, dataset)
+                dataset_output = output_base / dir_name
+
+                logger.info(f"[{i+1}/{num_datasets}] Building ARC: {dir_name}")
+
+                # Build ARC for this dataset
+                crate = builder.build_single_dataset(dataset, shared_entities)
+
+                if args.json:
+                    print(f"\n--- Dataset {i+1}: {dir_name} ---")
+                    print(json.dumps(builder.to_json(), indent=2))
+                else:
+                    builder.save(str(dataset_output))
+                    logger.info(f"  ARC directory: {dataset_output}")
+                    logger.info(f"  GitLab project (suggested): {gitlab_name}")
+
     except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON in input file: {e}", file=sys.stderr)
+        logger.error(f"Invalid JSON in input file: {e}")
         sys.exit(1)
+    except ValueError as e:
+        logger.error(f"{e}")
+        sys.exit(2)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"{e}")
         sys.exit(1)
 
 

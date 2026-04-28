@@ -9,8 +9,12 @@ Example:
 """
 
 import argparse
+import logging
 from pathlib import Path
+
 from gitlab_submitter import GitLabSubmitter
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -76,50 +80,102 @@ Environment Configuration:
         action='store_true',
         help='Show what would be deleted without actually deleting (use with --clear-group)'
     )
-    
+
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Enable debug output'
+    )
+
+    parser.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help='Suppress normal output'
+    )
+
     args = parser.parse_args()
+
+    if args.quiet:
+        level = logging.WARNING
+    elif args.verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
     
     try:
         # Initialize GitLab submitter
         submitter = GitLabSubmitter(config_path=args.env)
         
         if args.clear_group:
-            print("Clearing GitLab group...")
+            logger.info("Clearing GitLab group...")
             result = submitter.clear_group(dry_run=args.dry_run)
-            print(f"\nDone: {result['deleted']}/{result['total']} projects deleted")
+            logger.info(f"Done: {result['deleted']}/{result['total']} projects deleted")
             return 0
-        
-        # If no name provided, extract Investigation Identifier from isa.investigation.xlsx
-        project_name = args.name
-        if not project_name:
-            investigation_file = args.arc_directory / 'isa.investigation.xlsx'
-            if investigation_file.exists():
-                try:
-                    import openpyxl
-                    wb = openpyxl.load_workbook(investigation_file)
-                    ws = wb['isa_investigation']
-                    # Investigation Identifier is in cell B7
-                    identifier = ws['B7'].value
-                    if identifier:
-                        project_name = identifier
-                        print(f"Using Investigation Identifier as project name: {project_name}")
-                except Exception as e:
-                    print(f"Warning: Could not read Investigation Identifier: {e}")
-        
-        # Submit ARC
-        project = submitter.submit_arc(
-            arc_directory=args.arc_directory,
-            project_name=args.name,
-            description=args.description,
-            overwrite=args.overwrite,
-            branch=args.branch
-        )
-        
-        print("\n✓ Success! ARC is now available at:")
-        print(f"  {project['web_url']}")
-        
+
+        arc_path = Path(args.arc_directory)
+
+        # Check if this is a single ARC or a directory of ARCs
+        is_single_arc = arc_path.is_file() or (arc_path / 'isa.investigation.xlsx').exists()
+
+        if is_single_arc:
+            # Single ARC submission
+            project_name = args.name
+            if not project_name:
+                project_name = arc_path.name
+
+            logger.info(f"Submitting ARC: {project_name}")
+            project = submitter.submit_or_update_arc(
+                arc_directory=arc_path,
+                project_name=project_name,
+                description=args.description,
+                overwrite=args.overwrite
+            )
+            logger.info(f"Success! ARC is now available at: {project['web_url']}")
+        else:
+            # Directory with multiple ARCs - pipeline mode
+            logger.info(f"Pipeline mode: Processing all ARCs in {arc_path}")
+
+            arc_dirs = []
+            for subdir in sorted(arc_path.iterdir()):
+                if subdir.is_dir() and (subdir / 'isa.investigation.xlsx').exists():
+                    arc_dirs.append(subdir)
+
+            if not arc_dirs:
+                logger.warning(f"No ARCs found in {arc_path}")
+                return 0
+
+            logger.info(f"Found {len(arc_dirs)} ARC(s)")
+
+            results = {'created': 0, 'updated': 0, 'skipped': 0}
+            for i, subdir in enumerate(arc_dirs, 1):
+                logger.info(f"[{i}/{len(arc_dirs)}] Processing: {subdir.name}")
+
+                # Check if project exists before calling submit_or_update
+                existing = submitter.project_exists(subdir.name)
+
+                if existing and not args.overwrite:
+                    # Check if changed
+                    rocrate_file = subdir / 'ro-crate-metadata.json'
+                    if rocrate_file.exists() and submitter._has_file_changed(existing['id'], rocrate_file):
+                        logger.info("  Detected changes, updating...")
+                        submitter.submit_or_update_arc(subdir, subdir.name, f"ARC: {subdir.name}", args.overwrite)
+                        results['updated'] += 1
+                    else:
+                        logger.info("  No changes detected, skipping...")
+                        results['skipped'] += 1
+                else:
+                    submitter.submit_or_update_arc(subdir, subdir.name, f"ARC: {subdir.name}", args.overwrite)
+                    if existing:
+                        results['updated'] += 1
+                    else:
+                        results['created'] += 1
+
+            logger.info(f"Done! Created: {results['created']}, Updated: {results['updated']}, Skipped: {results['skipped']}")
+
     except Exception as e:
-        print(f"\n✗ Error: {e}")
+        logger.error(f"{e}")
         return 1
     
     return 0

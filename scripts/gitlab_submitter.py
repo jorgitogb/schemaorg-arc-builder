@@ -1,17 +1,21 @@
 """
 GitLab submission module for ARC repositories.
 
-This module handles the submission of ARC (Annotated Research Context) 
+This module handles the submission of ARC (Annotated Research Context)
 directories to GitLab repositories using the GitLab API.
 """
 
-import os
 import base64
+import logging
+import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 from urllib.parse import quote
+
 import requests
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 
 class GitLabSubmitter:
@@ -111,10 +115,9 @@ class GitLabSubmitter:
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            # Print error details for debugging
-            print(f"Error creating project: {e}")
+            logger.error(f"Error creating project: {e}")
             if response.text:
-                print(f"Response: {response.text}")
+                logger.debug(f"Response: {response.text}")
             raise
         return response.json()
     
@@ -203,7 +206,7 @@ class GitLabSubmitter:
         # Sort files to ensure .gitkeep files are created first to establish directory structure
         files_to_upload.sort(key=lambda x: (0 if x[1].endswith('.gitkeep') else 1, x[1]))
         
-        print(f"Uploading {len(files_to_upload)} files to GitLab in a single commit...")
+        logger.info(f"Uploading {len(files_to_upload)} files to GitLab in a single commit...")
         
         # Prepare actions for commit API
         actions = []
@@ -230,11 +233,11 @@ class GitLabSubmitter:
         try:
             response = requests.post(url, headers=self.headers, json=data)
             response.raise_for_status()
-            print(f"  ✓ Successfully committed {len(files_to_upload)} files")
+            logger.info(f"Successfully committed {len(files_to_upload)} files")
         except requests.exceptions.HTTPError as e:
-            print(f"  ✗ Failed to commit files: {e}")
+            logger.error(f"Failed to commit files: {e}")
             if response.text:
-                print(f"  Response: {response.text}")
+                logger.debug(f"Response: {response.text}")
             raise
     
     def submit_arc(self, arc_directory: Path, project_name: Optional[str] = None,
@@ -260,7 +263,7 @@ class GitLabSubmitter:
         if project_name is None:
             project_name = arc_directory.name
         
-        print(f"Submitting ARC to GitLab: {project_name}")
+        logger.info(f"Submitting ARC to GitLab: {project_name}")
         
         # Check if project exists
         existing_project = self.project_exists(project_name)
@@ -271,28 +274,28 @@ class GitLabSubmitter:
                     f"Project '{project_name}' already exists in GitLab. "
                     "Use overwrite=True to replace it."
                 )
-            print(f"  Deleting existing project: {project_name}")
+            logger.info(f"Deleting existing project: {project_name}")
             self.delete_project(existing_project['id'])
         
         # Create new project
-        print(f"  Creating GitLab project: {project_name}")
+        logger.info(f"Creating GitLab project: {project_name}")
         project = self.create_project(
             name=project_name,
             description=description,
             visibility="private"
         )
         
-        print(f"  ✓ Project created: {project['web_url']}")
+        logger.info(f"Project created: {project['web_url']}")
         
         # Create branch if not main
         if branch != "main":
-            print(f"  Creating branch: {branch}")
+            logger.info(f"Creating branch: {branch}")
             branch_url = f"{self.api_base}/projects/{project['id']}/repository/branches"
             branch_data = {"branch": branch, "ref": "main"}
             try:
                 branch_response = requests.post(branch_url, headers=self.headers, json=branch_data)
                 branch_response.raise_for_status()
-                print(f"  ✓ Branch created: {branch}")
+                logger.info(f"Branch created: {branch}")
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code != 400:  # Branch might already exist
                     raise
@@ -305,22 +308,132 @@ class GitLabSubmitter:
             commit_message="Add ARC structure"
         )
         
-        print("\n✓ ARC submitted successfully!")
-        print(f"  Project URL: {project['web_url']}")
-        print(f"  Project ID: {project['id']}")
+        logger.info("ARC submitted successfully")
+        logger.info(f"Project URL: {project['web_url']}")
+        logger.info(f"Project ID: {project['id']}")
         
         return project
     
     def delete_project(self, project_id: int) -> None:
         """
         Delete a GitLab project.
-        
+
         Args:
             project_id: GitLab project ID
         """
         url = f"{self.api_base}/projects/{project_id}"
         response = requests.delete(url, headers=self.headers)
         response.raise_for_status()
+
+    def submit_or_update_arc(self, arc_directory: Path, project_name: str,
+                             description: str = "", overwrite: bool = False) -> Dict[str, Any]:
+        """Submit new ARC or update if changed.
+
+        Args:
+            arc_directory: Path to local ARC directory
+            project_name: GitLab project name
+            description: Project description
+            overwrite: If True, delete and recreate existing project
+
+        Returns:
+            Project data
+        """
+        # Check if project exists
+        existing = self.project_exists(project_name)
+
+        if not existing:
+            # Create new project
+            logger.info(f"Creating new GitLab project: {project_name}")
+            project = self.create_project(name=project_name, description=description)
+
+            # Upload all files
+            self.upload_directory(project['id'], arc_directory, branch='main')
+
+            logger.info(f"Project created: {project['web_url']}")
+            return project
+        else:
+            if overwrite:
+                # Delete and recreate
+                logger.info(f"Deleting and recreating project: {project_name}")
+                self.delete_project(existing['id'])
+                project = self.create_project(name=project_name, description=description)
+                self.upload_directory(project['id'], arc_directory, branch='main')
+                return project
+            else:
+                # Check if ro-crate-metadata.json changed
+                logger.info(f"Project exists: {project_name}")
+
+                rocrate_file = arc_directory / 'ro-crate-metadata.json'
+                if rocrate_file.exists() and self._has_file_changed(existing['id'], rocrate_file):
+                    logger.info("Detected changes, updating ARC...")
+                    self._update_arc_files(existing['id'], arc_directory)
+                else:
+                    logger.info("No changes detected, skipping...")
+
+                return existing
+
+    def _has_file_changed(self, project_id: int, local_file: Path) -> bool:
+        """Check if file changed by comparing SHA256.
+
+        Args:
+            project_id: GitLab project ID
+            local_file: Path to local file
+
+        Returns:
+            True if changed or can't compare, False if identical
+        """
+        import hashlib
+
+        # Get remote file metadata
+        url = f"{self.api_base}/projects/{project_id}/repository/files/{quote(local_file.name, safe='')}"
+        params = {"ref": "main"}
+
+        try:
+            response = requests.get(url, headers=self.headers, params=params)
+            if response.status_code == 404:
+                return True  # New file
+            response.raise_for_status()
+
+            remote_data = response.json()
+            remote_sha256 = remote_data.get('content_sha256', '')
+
+            # Calculate local SHA256
+            with open(local_file, 'rb') as f:
+                local_sha256 = hashlib.sha256(f.read()).hexdigest()
+
+            return remote_sha256 != local_sha256
+
+        except requests.exceptions.HTTPError:
+            return True  # On error, assume changed
+
+    def _update_arc_files(self, project_id: int, directory: Path, branch: str = "main") -> None:
+        """Update ARC files in GitLab repo (upsert)."""
+        actions = []
+
+        for file_path in directory.rglob('*'):
+            if file_path.is_file():
+                relative_path = str(file_path.relative_to(directory)).replace('\\', '/')
+
+                with open(file_path, 'rb') as f:
+                    content = base64.b64encode(f.read()).decode('utf-8')
+
+                actions.append({
+                    "action": "upsert",
+                    "file_path": relative_path,
+                    "content": content,
+                    "encoding": "base64"
+                })
+
+        url = f"{self.api_base}/projects/{project_id}/repository/commits"
+        data = {
+            "branch": branch,
+            "commit_message": "Update ARC",
+            "actions": actions
+        }
+
+        response = requests.post(url, headers=self.headers, json=data)
+        response.raise_for_status()
+        logger.info(f"Updated {len(actions)} files")
     
     def list_group_projects(self, group_id: Optional[int] = None) -> list[Dict[str, Any]]:
         """
@@ -369,22 +482,22 @@ class GitLabSubmitter:
         projects = self.list_group_projects(group_id)
         
         if dry_run:
-            print(f"[DRY RUN] Would delete {len(projects)} projects:")
+            logger.info(f"[DRY RUN] Would delete {len(projects)} projects:")
             for p in projects:
-                print(f"  - {p['name']} (id: {p['id']})")
+                logger.info(f"  - {p['name']} (id: {p['id']})")
             return {"deleted": 0, "total": len(projects)}
-        
-        print(f"Deleting {len(projects)} projects in group...")
+
+        logger.info(f"Deleting {len(projects)} projects in group...")
         deleted_count = 0
-        
+
         for project in projects:
             try:
-                print(f"  Deleting: {project['name']} (id: {project['id']})")
+                logger.info(f"Deleting: {project['name']} (id: {project['id']})")
                 self.delete_project(project['id'])
                 deleted_count += 1
-                print(f"    ✓ Deleted")
+                logger.info("Deleted")
             except Exception as e:
-                print(f"    ✗ Failed: {e}")
-        
-        print(f"\n✓ Deleted {deleted_count}/{len(projects)} projects")
+                logger.error(f"Failed: {e}")
+
+        logger.info(f"Deleted {deleted_count}/{len(projects)} projects")
         return {"deleted": deleted_count, "total": len(projects)}
