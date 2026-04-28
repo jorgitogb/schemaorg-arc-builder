@@ -1,7 +1,13 @@
 """Build ISA RO-Crate from parsed Schema.org metadata."""
 
+import re
 from typing import Any, Dict, Optional
+
 from rocrate.rocrate import ROCrate
+from rocrate.model.contextentity import ContextEntity
+from rocrate.model.person import Person
+
+
 
 
 class ISAROCrateBuilder:
@@ -267,7 +273,6 @@ class ISAROCrateBuilder:
         """
         # Replace forbidden characters with underscore
         # Common forbidden: . / : \ etc
-        import re
         # Keep only alphanumeric, underscore, dash, and space
         sanitized = re.sub(r'[^a-zA-Z0-9_\- ]', '_', identifier)
         return sanitized
@@ -294,7 +299,6 @@ class ISAROCrateBuilder:
         description = self._extract_first_value(dataset.get('description', ''))
         
         # Create Study entity
-        from rocrate.model.contextentity import ContextEntity
         study_props = {
             '@type': 'Dataset',
             'additionalType': 'Study',
@@ -363,7 +367,7 @@ class ISAROCrateBuilder:
         
         assay_id = f"assays/{identifier}/"
         
-        from rocrate.model.contextentity import ContextEntity
+        
         assay_props = {
             '@type': 'Dataset',
             'additionalType': 'Assay',
@@ -493,7 +497,7 @@ class ISAROCrateBuilder:
             props['jobTitle'] = person_data['jobTitle']
         
         # Add person entity using Person class (sets @type: "Person")
-        from rocrate.model.person import Person
+        
         person_entity = Person(self.crate, person_id, properties=props)
         self.crate.add(person_entity)
         
@@ -542,7 +546,6 @@ class ISAROCrateBuilder:
         props['@type'] = 'Organization'
         
         # Add organization entity
-        from rocrate.model.contextentity import ContextEntity
         org_entity = ContextEntity(self.crate, org_id, properties=props)
         self.crate.add(org_entity)
         
@@ -579,7 +582,7 @@ class ISAROCrateBuilder:
             props['inDefinedTermSet'] = term_data['inDefinedTermSet']
         
         # Add DefinedTerm entity
-        from rocrate.model.contextentity import ContextEntity
+        
         term_entity = ContextEntity(self.crate, term_id, properties=props)
         self.crate.add(term_entity)
         
