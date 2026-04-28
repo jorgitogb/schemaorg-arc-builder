@@ -187,8 +187,12 @@ class ISAROCrateBuilder:
         # Add license
         if dataset.get('license'):
             license_val = dataset['license']
+            # Handle license - can be string, URL, or object (CreativeWork)
             if isinstance(license_val, list):
-                props['license'] = license_val[0] if license_val else ''
+                license_val = license_val[0]
+            if isinstance(license_val, dict):
+                # License object - extract URL or name as string
+                props['license'] = license_val.get('url', license_val.get('name', ''))
             else:
                 props['license'] = license_val
         
@@ -358,12 +362,13 @@ class ISAROCrateBuilder:
         if dataset.get('measurementTechnique'):
             props['measurementTechnique'] = dataset['measurementTechnique']
         
-        # Add other fields
-        if dataset.get('conditionsOfAccess'):
-            props['conditionsOfAccess'] = self._extract_first_value(dataset['conditionsOfAccess'])
-        
+        # Handle includedInDataCatalog - extract name, not pass object
         if dataset.get('includedInDataCatalog'):
-            props['includedInDataCatalog'] = dataset['includedInDataCatalog']
+            catalog = dataset['includedInDataCatalog']
+            if isinstance(catalog, dict):
+                props['includedInDataCatalog'] = catalog.get('name', str(catalog))
+            else:
+                props['includedInDataCatalog'] = catalog
         
         # Update root dataset
         for key, value in props.items():

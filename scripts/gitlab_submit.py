@@ -117,7 +117,8 @@ Environment Configuration:
         arc_path = Path(args.arc_directory)
 
         # Check if this is a single ARC or a directory of ARCs
-        is_single_arc = arc_path.is_file() or (arc_path / 'isa.investigation.xlsx').exists()
+        # Accept either full ARC (isa.investigation.xlsx) or RO-Crate (ro-crate-metadata.json)
+        is_single_arc = arc_path.is_file() or (arc_path / 'isa.investigation.xlsx').exists() or (arc_path / 'ro-crate-metadata.json').exists()
 
         if is_single_arc:
             # Single ARC submission
@@ -139,7 +140,7 @@ Environment Configuration:
 
             arc_dirs = []
             for subdir in sorted(arc_path.iterdir()):
-                if subdir.is_dir() and (subdir / 'isa.investigation.xlsx').exists():
+                if subdir.is_dir() and ((subdir / 'isa.investigation.xlsx').exists() or (subdir / 'ro-crate-metadata.json').exists()):
                     arc_dirs.append(subdir)
 
             if not arc_dirs:
