@@ -3,11 +3,9 @@
 import re
 from typing import Any, Dict, Optional
 
-from rocrate.rocrate import ROCrate
 from rocrate.model.contextentity import ContextEntity
 from rocrate.model.person import Person
-
-
+from rocrate.rocrate import ROCrate
 
 
 class ISAROCrateBuilder:
@@ -562,7 +560,9 @@ class ISAROCrateBuilder:
         Returns:
             Reference to the DefinedTerm entity
         """
-        term_id = term_data.get('@id', term_data.get('identifier', f"#DefinedTerm_{term_data.get('name', 'unknown')}"))
+        term_id = term_data.get(
+            '@id', term_data.get('identifier', f"#DefinedTerm_{term_data.get('name', 'unknown')}")
+        )
         
         # Check if already added
         if term_id in self.added_entities:
@@ -598,7 +598,9 @@ class ISAROCrateBuilder:
         """
         props = {
             '@type': 'ScholarlyArticle',
-            '@id': pub_data.get('@id', pub_data.get('identifier', f"#pub-{pub_data.get('name', 'unknown')}")),
+            '@id': pub_data.get(
+                '@id', pub_data.get('identifier', f"#pub-{pub_data.get('name', 'unknown')}")
+            ),
             'name': pub_data.get('name', ''),
         }
         
