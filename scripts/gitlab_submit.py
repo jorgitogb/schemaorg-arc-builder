@@ -65,11 +65,29 @@ Environment Configuration:
         help='Path to .env file (defaults to .env in current directory)'
     )
     
+    parser.add_argument(
+        '--clear-group',
+        action='store_true',
+        help='Delete all projects in the configured GitLab group'
+    )
+    
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show what would be deleted without actually deleting (use with --clear-group)'
+    )
+    
     args = parser.parse_args()
     
     try:
         # Initialize GitLab submitter
         submitter = GitLabSubmitter(config_path=args.env)
+        
+        if args.clear_group:
+            print("Clearing GitLab group...")
+            result = submitter.clear_group(dry_run=args.dry_run)
+            print(f"\nDone: {result['deleted']}/{result['total']} projects deleted")
+            return 0
         
         # If no name provided, extract Investigation Identifier from isa.investigation.xlsx
         project_name = args.name

@@ -14,3 +14,9 @@ wheels/
 .env.local
 .env.dev
 .env.prod
+
+# Local output directories
+output_crates/*_out/
+output_crates/arc/
+output_crates/*/arc/
+output_crates/*/*/

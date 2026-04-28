@@ -321,3 +321,70 @@ class GitLabSubmitter:
         url = f"{self.api_base}/projects/{project_id}"
         response = requests.delete(url, headers=self.headers)
         response.raise_for_status()
+    
+    def list_group_projects(self, group_id: Optional[int] = None) -> list[Dict[str, Any]]:
+        """
+        List all projects in a GitLab group.
+        
+        Args:
+            group_id: GitLab group ID. Defaults to GITLAB_GROUP_ID from env.
+        
+        Returns:
+            List of project data dictionaries
+        """
+        if group_id is None:
+            group_id = self.group_id
+        
+        projects = []
+        page = 1
+        per_page = 100
+        
+        while True:
+            url = f"{self.api_base}/groups/{group_id}/projects"
+            params = {"page": page, "per_page": per_page, "include_subgroups": False}
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            
+            page_projects = response.json()
+            if not page_projects:
+                break
+                
+            projects.extend(page_projects)
+            page += 1
+        
+        return projects
+    
+    def clear_group(self, group_id: Optional[int] = None, 
+                   dry_run: bool = False) -> Dict[str, int]:
+        """
+        Delete all projects in a GitLab group.
+        
+        Args:
+            group_id: GitLab group ID. Defaults to GITLAB_GROUP_ID from env.
+            dry_run: If True, only list projects without deleting.
+        
+        Returns:
+            Dictionary with 'deleted' and 'total' counts
+        """
+        projects = self.list_group_projects(group_id)
+        
+        if dry_run:
+            print(f"[DRY RUN] Would delete {len(projects)} projects:")
+            for p in projects:
+                print(f"  - {p['name']} (id: {p['id']})")
+            return {"deleted": 0, "total": len(projects)}
+        
+        print(f"Deleting {len(projects)} projects in group...")
+        deleted_count = 0
+        
+        for project in projects:
+            try:
+                print(f"  Deleting: {project['name']} (id: {project['id']})")
+                self.delete_project(project['id'])
+                deleted_count += 1
+                print(f"    ✓ Deleted")
+            except Exception as e:
+                print(f"    ✗ Failed: {e}")
+        
+        print(f"\n✓ Deleted {deleted_count}/{len(projects)} projects")
+        return {"deleted": deleted_count, "total": len(projects)}
