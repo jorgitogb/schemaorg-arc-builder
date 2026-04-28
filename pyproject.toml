@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Parse schema.org JSON-LD metadata into ISA RO-Crate structure"
 readme = "README.md"
 requires-python = ">=3.13"
+license = {text = "MIT"}
+classifiers = ["License :: OSI Approved :: MIT License"]
+
 dependencies = [
     "rocrate>=0.10.0",
     "rdflib>=7.0.0",

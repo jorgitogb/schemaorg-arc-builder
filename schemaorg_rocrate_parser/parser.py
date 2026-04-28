@@ -40,7 +40,10 @@ class SchemaOrgParser:
         """
         if isinstance(data, str):
             data = json.loads(data)
-        
+
+        # Validate input before processing
+        self._validate_input(data)
+
         # Handle different JSON-LD structures
         if isinstance(data, list):
             # Array of entities
@@ -54,9 +57,34 @@ class SchemaOrgParser:
                 # Single entity - wrap it as a single-item graph
                 self.context = data.get('@context', {})
                 return self._parse_graph([data])
-        
+
         return {}
-    
+
+    def _validate_input(self, data: Any) -> None:
+        """Validate top-level input before processing.
+
+        Args:
+            data: Parsed JSON data (dict or list)
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Rule 1: Must be dict or list
+        if not isinstance(data, (dict, list)):
+            raise ValueError(f"Input must be a JSON object or array, got {type(data).__name__}")
+
+        # Rule 2: Check @context contains schema.org or bioschemas.org
+        if isinstance(data, dict) and '@context' in data:
+            context_value = data['@context']
+            context_str = str(context_value).lower()
+            if 'schema.org' not in context_str and 'bioschemas.org' not in context_str:
+                raise ValueError(f"@context does not appear to be a Schema.org or Bioschemas context: {context_value}")
+
+        # Rule 3: Dict must have @type or @graph
+        if isinstance(data, dict):
+            if '@type' not in data and '@graph' not in data:
+                raise ValueError("Input has no @type or @graph — not a valid JSON-LD document")
+
     def _parse_graph(self, graph: List[Dict]) -> Dict[str, Any]:
         """Parse a graph of entities.
         
@@ -71,6 +99,7 @@ class SchemaOrgParser:
             'persons': [],
             'organizations': [],
             'publications': [],
+            'grants': [],
             'other': []
         }
         
@@ -89,6 +118,8 @@ class SchemaOrgParser:
                 entities['organizations'].append(parsed)
             elif any(t in entity_type for t in ['ScholarlyArticle', 'Article', 'Publication']):
                 entities['publications'].append(parsed)
+            elif 'Grant' in entity_type:
+                entities['grants'].append(parsed)
             else:
                 entities['other'].append(parsed)
         
@@ -99,7 +130,7 @@ class SchemaOrgParser:
                 id_index[parsed['@id']] = parsed
         
         # Second pass: resolve @id references
-        for key in ['datasets', 'persons', 'organizations', 'publications', 'other']:
+        for key in ['datasets', 'persons', 'organizations', 'publications', 'grants', 'other']:
             for i, entity in enumerate(entities[key]):
                 entities[key][i] = self._resolve_references(entity, id_index)
         
@@ -150,7 +181,11 @@ class SchemaOrgParser:
         # Handle Organization entities
         if 'Organization' in entity_type:
             return self._parse_organization(entity)
-        
+
+        # Handle Grant entities
+        if 'Grant' in entity_type:
+            return self._parse_grant(entity)
+
         # Extract common properties for other entities
         parsed = {
             '@id': entity.get('@id', ''),
@@ -304,9 +339,40 @@ class SchemaOrgParser:
         
         # Store in global organization registry
         self.all_organizations[org_id] = parsed
-        
+
         return parsed
-    
+
+    def _parse_grant(self, grant: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse Grant entity.
+
+        Args:
+            grant: Grant entity
+
+        Returns:
+            Normalized grant data
+        """
+        grant_id = grant.get('@id', '')
+        if not grant_id:
+            name = grant.get('name', 'Unknown')
+            grant_id = f"#Grant_{name.replace(' ', '_')[:50]}"
+
+        parsed = {
+            '@id': grant_id,
+            '@type': ['Grant'],
+            'name': grant.get('name', ''),
+        }
+
+        if grant.get('identifier'):
+            parsed['identifier'] = grant['identifier']
+        if grant.get('url'):
+            parsed['url'] = grant['url']
+        if grant.get('description'):
+            parsed['description'] = grant['description']
+        if grant.get('funder'):
+            parsed['funder'] = grant['funder']
+
+        return parsed
+
     def _parse_identifiers(self, identifiers: Union[str, Dict, List]) -> List[Dict[str, str]]:
         """Parse various identifier formats.
         

@@ -2,8 +2,12 @@
 
 import argparse
 import json
+import logging
 from pathlib import Path
+
 from arctrl import ARC
+
+logger = logging.getLogger(__name__)
 
 
 class ARCCreator:
@@ -157,19 +161,18 @@ class ARCCreator:
         # Write ARC using ARCtrl
         arc.Write(str(arc_path))
         
-        print(f"\n✓ ARC written to: {arc_path}")
-        print(f"  - Investigation: {arc_path / 'isa.investigation.xlsx'}")
-        
-        # List created studies and assays
+        logger.info(f"ARC written to: {arc_path}")
+        logger.info(f"  Investigation: {arc_path / 'isa.investigation.xlsx'}")
+
         studies_dir = arc_path / 'studies'
         if studies_dir.exists():
             study_count = len(list(studies_dir.iterdir()))
-            print(f"  - Studies: {study_count}")
-        
+            logger.info(f"  Studies: {study_count}")
+
         assays_dir = arc_path / 'assays'
         if assays_dir.exists():
             assay_count = len(list(assays_dir.iterdir()))
-            print(f"  - Assays: {assay_count}")
+            logger.info(f"  Assays: {assay_count}")
 
 
 def main():
@@ -190,14 +193,15 @@ def main():
     )
     
     args = parser.parse_args()
-    
-    # Create ARC
-    print(f"Creating ARC from: {args.rocrate_path}")
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    logger.info(f"Creating ARC from: {args.rocrate_path}")
     creator = ARCCreator(Path(args.rocrate_path))
     arc = creator.create_arc()
     creator.write_arc(arc, args.name)
-    
-    print("\nARC creation complete!")
+
+    logger.info("ARC creation complete")
 
 
 if __name__ == '__main__':
