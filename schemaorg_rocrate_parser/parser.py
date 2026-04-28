@@ -3,8 +3,8 @@
 import json
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Union
 from pathlib import Path
+from typing import Any, Dict, List, Union
 
 
 class SchemaOrgParser:
@@ -163,7 +163,8 @@ class SchemaOrgParser:
         for key, value in entity.items():
             if key not in ['@id', '@type', '@context', 'name', 'description', 'headline']:
                 # Normalize date fields
-                if key in ['datePublished', 'dateCreated', 'dateModified', 'dateSubmitted', 'publicReleaseDate']:
+                if key in ['datePublished', 'dateCreated', 'dateModified',
+                           'dateSubmitted', 'publicReleaseDate']:
                     if isinstance(value, str):
                         parsed[key] = self._normalize_date(value)
                     else:
@@ -211,7 +212,8 @@ class SchemaOrgParser:
         # Handle address (can be string or PostalAddress object)
         if 'address' in person:
             address = person['address']
-            if isinstance(address, dict) and '@type' in address and address['@type'] == 'PostalAddress':
+            if (isinstance(address, dict) and '@type' in address
+                        and address['@type'] == 'PostalAddress'):
                 # Flatten PostalAddress to string or keep as simplified object
                 address_parts = []
                 if address.get('streetAddress'):
@@ -286,7 +288,8 @@ class SchemaOrgParser:
         # Handle address
         if 'address' in org:
             address = org['address']
-            if isinstance(address, dict) and '@type' in address and address['@type'] == 'PostalAddress':
+            if (isinstance(address, dict) and '@type' in address
+                        and address['@type'] == 'PostalAddress'):
                 # Flatten PostalAddress to string
                 address_parts = []
                 if address.get('streetAddress'):
@@ -323,7 +326,7 @@ class SchemaOrgParser:
             if 'propertyID' in identifiers:
                 # PropertyValue - extract to simple dict without @type
                 result.append({
-                    '@id': identifiers.get('value', ''),  # Store value as @id for rocrate compatibility
+                    '@id': identifiers.get('value', ''),
                     'propertyID': identifiers['propertyID'],
                     'value': identifiers.get('value', '')
                 })
@@ -340,7 +343,7 @@ class SchemaOrgParser:
                     if 'propertyID' in item:
                         # PropertyValue - extract to simple dict without @type
                         result.append({
-                            '@id': item.get('value', ''),  # Store value as @id for rocrate compatibility
+                            '@id': item.get('value', ''),
                             'propertyID': item['propertyID'],
                             'value': item.get('value', '')
                         })
