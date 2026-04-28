@@ -4,7 +4,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from schemaorg_rocrate_parser import SchemaOrgParser, ISAROCrateBuilder
+
+from schemaorg_rocrate_parser import ISAROCrateBuilder, SchemaOrgParser
 
 
 def main():
@@ -72,4 +73,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

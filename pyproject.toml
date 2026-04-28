@@ -21,6 +21,9 @@ dev = [
     "mypy>=1.10",
 ]
 
+[project.scripts]
+schemaorg-rocrate-parser = "schemaorg_rocrate_parser.__main__:main"
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
@@ -29,6 +32,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["schemaorg_rocrate_parser*"]
+
+[tool.uv]
+package = true
 
 [tool.ruff]
 line-length = 100
