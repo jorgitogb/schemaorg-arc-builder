@@ -74,8 +74,11 @@ class SchemaOrgParser:
             'other': []
         }
         
+        # First pass: parse all entities
+        all_parsed = []
         for entity in graph:
             parsed = self._parse_entity(entity)
+            all_parsed.append(parsed)
             entity_type = self._get_type(entity)
             
             if 'Dataset' in entity_type:
@@ -89,7 +92,42 @@ class SchemaOrgParser:
             else:
                 entities['other'].append(parsed)
         
+        # Build id_index from first pass
+        id_index: Dict[str, Dict] = {}
+        for parsed in all_parsed:
+            if parsed.get('@id'):
+                id_index[parsed['@id']] = parsed
+        
+        # Second pass: resolve @id references
+        for key in ['datasets', 'persons', 'organizations', 'publications', 'other']:
+            for i, entity in enumerate(entities[key]):
+                entities[key][i] = self._resolve_references(entity, id_index)
+        
         return entities
+    
+    def _resolve_references(self, value: Any, id_index: Dict[str, Dict]) -> Any:
+        """Resolve @id references in a value using the id_index.
+        
+        Args:
+            value: Value to resolve (dict, list, or primitive)
+            id_index: Mapping of @id -> full entity
+            
+        Returns:
+            Value with references resolved
+        """
+        if isinstance(value, dict):
+            # Check if it's a reference-only dict (only @id, no other keys)
+            if value.keys() == {'@id'}:
+                ref_id = value.get('@id', '')
+                # Only resolve local references (not external URIs)
+                if ref_id and not ref_id.startswith(('http://', 'https://')):
+                    if ref_id in id_index:
+                        return id_index[ref_id]
+            # Recurse into all dict values
+            return {k: self._resolve_references(v, id_index) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._resolve_references(item, id_index) for item in value]
+        return value
     
     def _parse_entity(self, entity: Dict[str, Any]) -> Dict[str, Any]:
         """Parse a single entity.
@@ -370,6 +408,9 @@ class SchemaOrgParser:
             Normalized value
         """
         if isinstance(value, dict):
+            # Don't convert reference-only dicts (only @id) - those need to be resolved later
+            if value.keys() == {'@id'}:
+                return value
             if '@value' in value or '@id' in value:
                 return self._get_value(value)
             # Check if it's a Person or Organization entity
