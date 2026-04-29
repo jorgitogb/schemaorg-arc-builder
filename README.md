@@ -42,24 +42,42 @@ pip install -e .
 
 ## Usage
 
-### Command Line
+### With uv (recommended)
 
 Parse a JSON-LD file and create an RO-Crate:
 
 ```bash
-schemaorg-rocrate-parser examples/edal.json -o output-crate
+uv run python -m schemaorg_arc_builder examples/edal.json -o output-crate
 ```
 
 Output JSON-LD to stdout:
 
 ```bash
-schemaorg-rocrate-parser examples/bonares.json --json
+uv run python -m schemaorg_arc_builder examples/bonares.json --json
 ```
 
 Harvest metadata from GitHub and process through full pipeline:
 
 ```bash
-python scripts/harvest/harvest_and_process.py
+uv run python -m scripts.harvest.harvest_and_process
+```
+
+### With Limit Parameter (NEW FEATURE)
+
+Process only the first N datasets from each harvested metadata file:
+
+```bash
+# Process only first 5 datasets from GitHub metadata files
+uv run python -m scripts.harvest.harvest_and_process --limit 5
+
+# Process only first 5 harvested files
+uv run python -m scripts.harvest.harvest_and_process --process-only --limit 5
+
+# Process only first 5 ARCs for submission
+uv run python -m scripts.harvest.harvest_and_process --submit-only --limit 5
+
+# Dry run with limit to avoid actual GitLab operations
+uv run python -m scripts.harvest.harvest_and_process --limit 5 --dry-run
 ```
 
 ### Python API

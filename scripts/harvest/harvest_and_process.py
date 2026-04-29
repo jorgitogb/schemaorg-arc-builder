@@ -8,9 +8,13 @@ import os
 import sys
 from pathlib import Path
 
-from harvest.github_harvester import GitHubHarvester
-from process.arc_creator import ARCCreator
-from submit.gitlab_submitter import GitLabSubmitter
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from scripts.harvest.github_harvester import GitHubHarvester
+from scripts.process.arc_creator import ARCCreator
+from scripts.submit.gitlab_submitter import GitLabSubmitter
 
 # Configure logging
 logging.basicConfig(

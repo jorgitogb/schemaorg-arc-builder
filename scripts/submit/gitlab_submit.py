@@ -12,7 +12,11 @@ import argparse
 import logging
 from pathlib import Path
 
-from gitlab_submitter import GitLabSubmitter
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from scripts.submit.gitlab_submitter import GitLabSubmitter
 
 logger = logging.getLogger(__name__)
 
