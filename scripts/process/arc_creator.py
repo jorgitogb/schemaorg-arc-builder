@@ -63,15 +63,49 @@ class ARCCreator:
             # Convert Organizations to Person contacts
             self._add_organization_contacts(arc, investigation_entity, rocrate_data)
         
-    def create_arc_from_dict(self, rocrate_data: dict) -> ARC:
+    def create_arc_from_dict(self, rocrate_data: dict, limit: Optional[int] = None) -> ARC:
         """Create ARC from RO-Crate metadata dictionary.
         
         Args:
             rocrate_data: RO-Crate metadata dictionary
+            limit: Limit number of datasets to process (default: no limit)
             
         Returns:
             ARC object
         """
+        # Apply dataset limit if specified
+        if limit:
+            # Limit datasets in the RO-Crate data to first 'limit' datasets
+            # We'll modify the @graph to include only datasets up to the limit
+            graph = rocrate_data.get('@graph', [])
+            
+            # Find datasets in the graph (entities with @type = 'Dataset')
+            datasets = [item for item in graph if item.get('@type') == 'Dataset']
+            
+            # Limit datasets if needed
+            if len(datasets) > limit:
+                # Keep the first 'limit' datasets and their related entities
+                dataset_ids = [dataset.get('@id') for dataset in datasets[:limit]]
+                
+                # Keep root entity, dataset entities, and related entities
+                filtered_graph = []
+                for item in graph:
+                    # Always keep the root entity
+                    if item.get('@id') == './':
+                        filtered_graph.append(item)
+                        continue
+                    
+                    # Keep the dataset itself
+                    if item.get('@id') in dataset_ids:
+                        filtered_graph.append(item)
+                        continue
+                        
+                    # Keep entities that reference datasets (like creator links, etc.)
+                    # This is a simplified approach - we could be more sophisticated
+                    filtered_graph.append(item)
+                
+                rocrate_data['@graph'] = filtered_graph
+        
         # Convert dict to JSON string
         import json
         rocrate_json_string = json.dumps(rocrate_data)
