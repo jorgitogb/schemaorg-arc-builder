@@ -79,7 +79,7 @@ data/
 !data/output/.gitkeep
 
 # Configuration
-config/*.env
+config/.env
 
 # macos
 .DS_Store
