@@ -80,3 +80,6 @@ data/
 
 # Configuration
 config/*.env
+
+# macos
+.DS_Store
