@@ -4,7 +4,13 @@ Test script to verify GitHub harvester configuration.
 """
 
 import os
-from scripts.github_harvester import GitHubHarvester
+import sys
+import pathlib
+
+# Add the project root to the Python path
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.parent))
+
+from scripts.harvest.github_harvester import GitHubHarvester
 
 def test_configuration():
     """Test that configuration is properly loaded."""
