@@ -144,7 +144,7 @@ class ISAROCrateBuilder:
         # Fallback: name
         return dataset.get('name', 'dataset')
     
-    def _add_investigation(self, dataset: Dict[str, Any]):
+    def _add_investigation(self, dataset: Dict[str, Any]) -> None:
         """Add Investigation entity to RO-Crate root dataset.
         
         Args:
@@ -160,11 +160,54 @@ class ISAROCrateBuilder:
             'description': description,
         }
         
+        # Add basic properties
+        props = self._add_investigation_basic_properties(props, dataset)
+        
+        # Add identifier
+        props = self._add_investigation_identifier(props, dataset)
+        
+        # Add dates
+        props = self._add_investigation_dates(props, dataset)
+        
+        # Add license
+        props = self._add_investigation_license(props, dataset)
+        
+        # Add keywords
+        props = self._add_investigation_keywords(props, dataset)
+        
+        # Add language
+        props = self._add_investigation_language(props, dataset)
+        
+        # Add creators
+        props = self._add_investigation_creators(props, dataset)
+        
+        # Add funding
+        props = self._add_investigation_funding(props, dataset)
+        
+        # Add other properties
+        props = self._add_investigation_other_properties(props, dataset)
+        
+        # Update root dataset
+        for key, value in props.items():
+            self.crate.root_dataset[key] = value
+        
+        # Create a Study from the dataset
+        self._add_study_from_dataset(dataset)
+
+    def _add_investigation_basic_properties(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add basic properties to investigation props."""
+        return props
+
+    def _add_investigation_identifier(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add identifier to investigation props."""
         # Add identifier
         identifier = dataset.get('identifier', dataset.get('@id', ''))
         if identifier:
             props['identifier'] = self._extract_first_value(identifier)
-        
+        return props
+
+    def _add_investigation_dates(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add date properties to investigation props."""
         # Add dates
         if dataset.get('datePublished'):
             date_published = self._extract_first_value(dataset['datePublished'])
@@ -174,16 +217,19 @@ class ISAROCrateBuilder:
             # Use datePublished as fallback for submissionDate if dateCreated not available
             if not dataset.get('dateCreated'):
                 props['submissionDate'] = date_published
-        
+
         if dataset.get('dateCreated'):
             date_created = self._extract_first_value(dataset['dateCreated'])
             props['dateCreated'] = date_created
             # Add ISA submission date
             props['submissionDate'] = date_created
-        
+
         if dataset.get('dateModified'):
             props['dateModified'] = self._extract_first_value(dataset['dateModified'])
-        
+        return props
+
+    def _add_investigation_license(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add license property to investigation props."""
         # Add license
         if dataset.get('license'):
             license_val = dataset['license']
@@ -195,7 +241,10 @@ class ISAROCrateBuilder:
                 props['license'] = license_val.get('url', license_val.get('name', ''))
             else:
                 props['license'] = license_val
-        
+        return props
+
+    def _add_investigation_keywords(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add keywords property to investigation props."""
         # Add keywords
         if dataset.get('keywords'):
             keywords = dataset['keywords']
@@ -216,7 +265,10 @@ class ISAROCrateBuilder:
                 props['keywords'] = keyword_list
             else:
                 props['keywords'] = keywords
-        
+        return props
+
+    def _add_investigation_language(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add language property to investigation props."""
         # Add language
         if dataset.get('inLanguage'):
             in_lang = dataset['inLanguage']
@@ -233,7 +285,10 @@ class ISAROCrateBuilder:
                 props['inLanguage'] = lang_list
             else:
                 props['inLanguage'] = in_lang
-        
+        return props
+
+    def _add_investigation_creators(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add creator properties to investigation props."""
         # Handle creators/authors - convert to references
         creators = []
         
@@ -305,7 +360,10 @@ class ISAROCrateBuilder:
                     funder_refs.append(funder_ref)
             if funder_refs:
                 props['funder'] = funder_refs
-        
+        return props
+
+    def _add_investigation_funding(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add funding property to investigation props."""
         # Handle funding - add Grant entities and reference them
         if dataset.get('funding'):
             funding_data = dataset['funding']
@@ -344,7 +402,10 @@ class ISAROCrateBuilder:
 
             if funding_refs:
                 props['funding'] = funding_refs
+        return props
 
+    def _add_investigation_other_properties(self, props: Dict[str, Any], dataset: Dict[str, Any]) -> Dict[str, Any]:
+        """Add other properties to investigation props."""
         # Handle distribution
         if dataset.get('distribution'):
             props['distribution'] = dataset['distribution']
@@ -369,13 +430,7 @@ class ISAROCrateBuilder:
                 props['includedInDataCatalog'] = catalog.get('name', str(catalog))
             else:
                 props['includedInDataCatalog'] = catalog
-        
-        # Update root dataset
-        for key, value in props.items():
-            self.crate.root_dataset[key] = value
-        
-        # Create a Study from the dataset
-        self._add_study_from_dataset(dataset)
+        return props
     
     def _sanitize_identifier(self, identifier: str) -> str:
         """Sanitize identifier to contain only allowed characters.

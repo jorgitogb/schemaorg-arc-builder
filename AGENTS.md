@@ -87,12 +87,28 @@ schemaorg_arc_builder/
 │   ├── parser.py                # Layer 1 — JSON-LD → normalized dict
 │   └── rocrate_builder.py       # Layer 2 — dict → RO-Crate
 ├── scripts/
-│   ├── arc_creator.py           # Layer 3 — RO-Crate → ARC (ARCtrl)
-│   ├── gitlab_submitter.py      # Layer 4 — ARC → GitLab push
-│   └── gitlab_submit.py        # CLI wrapper for gitlab_submitter
-├── examples/                    # Real-world JSON-LD input examples
-├── output_crates/               # Committed example outputs (DO NOT delete)
+│   ├── harvest/                 # GitHub harvesting scripts
+│   │   ├── github_harvester.py  # Fetch metadata from GitHub
+│   │   └── harvest_and_process.py # Complete harvesting workflow
+│   ├── process/                 # Processing scripts
+│   │   └── arc_creator.py       # RO-Crate → ARC (ARCtrl)
+│   ├── submit/                  # GitLab submission scripts
+│   │   ├── gitlab_submitter.py  # ARC → GitLab push
+│   │   └── gitlab_submit.py     # CLI wrapper for gitlab_submitter
+│   └── utils/                   # Utility scripts
+│       └── test_harvester_config.py # Config validation
+├── data/                        # Data storage (outputs go here)
+│   ├── harvested/               # Harvested files from GitHub
+│   ├── processed/               # Processed RO-Crates
+│   └── output/                  # Final ARC outputs
+├── config/                      # Configuration files
+│   ├── .env.dev                 # Development config
+│   └── .env.prod                # Production config
 ├── tests/                       # pytest suite: test_*.py, conftest.py
+│   ├── unit/                    # Unit tests
+│   ├── integration/             # Integration tests
+│   └── test_data/               # Test data files
+├── examples/                    # Real-world JSON-LD input examples
 ├── assets/                      # Images for README
 └── pyproject.toml
 ```
@@ -111,6 +127,35 @@ pip install -e .
 # Copy and fill in credentials for GitLab submission
 cp .env.example .env
 # Edit .env: GITLAB_URL, GITLAB_PRIVATE_TOKEN, GITLAB_NAMESPACE_ID, GITLAB_GROUP_ID
+
+# For GitHub harvesting, also add your GitHub token:
+# GITHUB_TOKEN=your_github_token
+# GITHUB_REPOSITORY=fairagro/middleware_repo  
+# GITHUB_BRANCH=main
+# GITHUB_METADATA_PATH=metadata
+```
+
+**Python version**: >= 3.13 (enforced in pyproject.toml).
+
+**Never commit `.env`** — it contains private tokens.
+
+## Running the Project
+
+```bash
+# Parse a JSON-LD file → write RO-Crate to disk
+python main.py examples/example_edal.json -o output_crates/edal_arc
+
+# Parse → print JSON-LD to stdout (for inspection)
+python main.py examples/example_bonares.json --json
+
+# Harvest metadata from GitHub and process through full pipeline
+python scripts/harvest/harvest_and_process.py
+
+# Generate ARC from existing RO-Crate
+python scripts/process/arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
+
+# Submit ARC to GitLab
+python scripts/submit/gitlab_submit.py output_crates/edal_arc/arc --name my-arc --overwrite
 ```
 
 **Python version**: >= 3.13 (enforced in pyproject.toml).
@@ -128,12 +173,25 @@ python main.py examples/example_edal.json -o output_crates/edal_arc
 # Parse → print JSON-LD to stdout (for inspection)
 python main.py examples/example_bonares.json --json
 
+# Harvest metadata from GitHub and process through full pipeline
+python scripts/harvest/harvest_and_process.py
+
 # Generate ARC from existing RO-Crate
-python scripts/arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
+python scripts/process/arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
 
 # Submit ARC to GitLab
-python scripts/gitlab_submit.py output_crates/edal_arc/arc --name my-arc --overwrite
+python scripts/submit/gitlab_submit.py output_crates/edal_arc/arc --name my-arc --overwrite
 ```
+
+## Data Organization
+
+All output files are now organized in the `data/` directory:
+
+- **`data/harvested/`** - Raw metadata harvested from GitHub repositories
+- **`data/processed/`** - Processed RO-Crate files  
+- **`data/output/`** - Final ARC structures and outputs
+
+This organization ensures clean separation of concerns and makes it easy to manage outputs without cluttering the project root.
 
 ---
 
@@ -165,6 +223,22 @@ python scripts/gitlab_submit.py output_crates/edal_arc/arc --name my-arc --overw
 - In `rocrate_builder.py`, raise `RuntimeError` for unrecoverable build errors.
 - CLI entry points (`main.py`, scripts) catch exceptions and print to `stderr` then `sys.exit(1)`.
 - Replace bare `print()` debug statements with Python `logging` (see tech debt section).
+
+### Directory Structure Guidelines
+
+- **Scripts**: Organized by function in `scripts/` subdirectories:
+  - `scripts/harvest/` - GitHub harvesting
+  - `scripts/process/` - Processing and ARC creation  
+  - `scripts/submit/` - GitLab submission
+  - `scripts/utils/` - Utility functions
+- **Data**: All outputs organized in `data/` directory:
+  - `data/harvested/` - Raw harvested files
+  - `data/processed/` - Processed outputs
+  - `data/output/` - Final ARC structures
+- **Tests**: Well-organized test structure in `tests/`
+  - `tests/unit/` - Unit tests
+  - `tests/integration/` - Integration tests
+  - `tests/test_data/` - Test data files
 
 ---
 

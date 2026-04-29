@@ -22,6 +22,10 @@ This tool converts Schema.org metadata (in JSON-LD format) into RO-Crate followi
   - `Organization` → Organization entities
   - `ScholarlyArticle` → Publication references
 
+- **GitHub harvesting**: Harvest metadata from private GitHub repositories
+
+- **GitLab submission**: Submit ARCs directly to GitLab repositories
+
 ## Installation
 
 Install dependencies using `uv`:
@@ -52,6 +56,12 @@ Output JSON-LD to stdout:
 schemaorg-rocrate-parser examples/bonares.json --json
 ```
 
+Harvest metadata from GitHub and process through full pipeline:
+
+```bash
+python scripts/harvest/harvest_and_process.py
+```
+
 ### Python API
 
 ```python
@@ -71,6 +81,16 @@ builder.save("my-rocrate")
 # Or get as JSON-LD
 json_ld = builder.to_json()
 ```
+
+## Data Organization
+
+All output files are now organized in the `data/` directory:
+
+- **`data/harvested/`** - Raw metadata harvested from GitHub repositories
+- **`data/processed/`** - Processed RO-Crate files  
+- **`data/output/`** - Final ARC structures and outputs
+
+This organization ensures clean separation of concerns and makes it easy to manage outputs without cluttering the project root.
 
 ## Input Format Examples
 
@@ -116,7 +136,7 @@ json_ld = builder.to_json()
 Generate an ARC from the RO-Crate:
 
 ```bash
-python scripts/arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
+python scripts/process/arc_creator.py output_crates/edal_arc/ro-crate-metadata.json
 ```
 
 This creates:
@@ -149,13 +169,13 @@ GITLAB_GROUP_ID=55
 
 ```bash
 # Submit an ARC to GitLab
-python scripts/gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project
+python scripts/submit/gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project
 
 # Overwrite existing project
-python scripts/gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project --overwrite
+python scripts/submit/gitlab_submit.py output_crates/edal_arc/arc --name my-arc-project --overwrite
 
 # Add description
-python scripts/gitlab_submit.py output_crates/edal_arc/arc \
+python scripts/submit/gitlab_submit.py output_crates/edal_arc/arc \
   --name my-arc-project \
   --description "Rice genome dataset ARC"
 ```
@@ -187,6 +207,42 @@ The parser generates an RO-Crate directory with:
 - `ro-crate-metadata.json`: The RO-Crate metadata file
 - Properly structured entities following ISA patterns
 
+## Project Structure
+
+```
+schemaorg_arc_builder/
+├── schemaorg_arc_builder/
+│   ├── __init__.py              # Public API: SchemaOrgParser, ISAROCrateBuilder
+│   ├── __main__.py              # CLI entry point (python -m or schemaorg-rocrate-parser)
+│   ├── parser.py                # Layer 1 — JSON-LD → normalized dict
+│   └── rocrate_builder.py       # Layer 2 — dict → RO-Crate
+├── scripts/
+│   ├── harvest/                 # GitHub harvesting scripts
+│   │   ├── github_harvester.py  # Fetch metadata from GitHub
+│   │   └── harvest_and_process.py # Complete harvesting workflow
+│   ├── process/                 # Processing scripts
+│   │   └── arc_creator.py       # RO-Crate → ARC (ARCtrl)
+│   ├── submit/                  # GitLab submission scripts
+│   │   ├── gitlab_submitter.py  # ARC → GitLab push
+│   │   └── gitlab_submit.py     # CLI wrapper for gitlab_submitter
+│   └── utils/                   # Utility scripts
+│       └── test_harvester_config.py # Config validation
+├── data/                        # Data storage (outputs go here)
+│   ├── harvested/               # Harvested files from GitHub
+│   ├── processed/               # Processed RO-Crates
+│   └── output/                  # Final ARC outputs
+├── config/                      # Configuration files
+│   ├── .env.dev                 # Development config
+│   └── .env.prod                # Production config
+├── tests/                       # pytest suite: test_*.py, conftest.py
+│   ├── unit/                    # Unit tests
+│   ├── integration/             # Integration tests
+│   └── test_data/               # Test data files
+├── examples/                    # Real-world JSON-LD input examples
+├── assets/                      # Images for README
+└── pyproject.toml
+```
+
 ## Development
 
 Project structure:
@@ -199,10 +255,15 @@ schemaorg_arc_builder/
 │   ├── parser.py             # JSON-LD parser
 │   └── rocrate_builder.py    # RO-Crate builder
 ├── scripts/
-│   ├── arc_creator.py       # ARC creation from RO-Crate
-│   ├── gitlab_submitter.py  # GitLab push
-│   └── gitlab_submit.py     # CLI wrapper
-├── examples/                 # JSON-LD input examples
+│   ├── harvest/              # GitHub harvesting
+│   ├── process/              # Processing and ARC creation  
+│   ├── submit/               # GitLab submission
+│   └── utils/                # Utility functions
+├── data/                     # Output data storage
+│   ├── harvested/            # Raw harvested files
+│   ├── processed/            # Processed outputs
+│   └── output/               # Final ARC structures
+├── config/                   # Configuration files
 ├── tests/                    # pytest suite
 └── pyproject.toml
 ```

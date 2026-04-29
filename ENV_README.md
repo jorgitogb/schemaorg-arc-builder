@@ -24,15 +24,22 @@ This directory contains environment configuration templates for different deploy
 
 3. Alternatively, use the `--env` flag to specify a config file:
    ```bash
-   python scripts/gitlab_submit.py <arc_directory> --env .env.prod
+   python scripts/submit/gitlab_submit.py <arc_directory> --env .env.prod
    ```
 
 ## Configuration Variables
 
+### GitLab Configuration
 - `GITLAB_URL`: GitLab instance URL
 - `GITLAB_PRIVATE_TOKEN`: Personal access token with API access
 - `GITLAB_NAMESPACE_ID`: Namespace/group ID for projects
 - `GITLAB_GROUP_ID`: Group ID (usually same as namespace ID)
+
+### GitHub Configuration (for metadata harvesting)
+- `GITHUB_TOKEN`: Personal access token with `repo` scope for private repository access
+- `GITHUB_REPOSITORY`: Repository in format `owner/repo` (e.g., `fairagro/middleware_repo`)
+- `GITHUB_BRANCH`: Branch name (default: `main`)
+- `GITHUB_METADATA_PATH`: Path to metadata directory within repo (default: empty for root)
 
 ## Security
 

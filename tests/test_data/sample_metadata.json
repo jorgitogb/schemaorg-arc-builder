@@ -1,0 +1,25 @@
+{
+  "@context": {
+    "@language": "en",
+    "@vocab": "https://schema.org/"
+  },
+  "@type": "Dataset",
+  "name": "Test Dataset for Unit Testing",
+  "description": "A sample dataset for testing the schemaorg-arc-builder functionality",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "Test Author",
+      "email": "test@example.com"
+    }
+  ],
+  "datePublished": "2023-01-01",
+  "identifier": [
+    "urn:test:dataset:12345"
+  ],
+  "keywords": [
+    "test",
+    "dataset",
+    "schema.org"
+  ]
+}

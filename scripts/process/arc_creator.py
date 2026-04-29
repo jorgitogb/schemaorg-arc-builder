@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+import re
 from pathlib import Path
 
 from arctrl import ARC
@@ -13,14 +14,14 @@ logger = logging.getLogger(__name__)
 class ARCCreator:
     """Create ARC structures from RO-Crate metadata using ARCtrl."""
     
-    def __init__(self, rocrate_path: Path):
+    def __init__(self, rocrate_path: Path = None):
         """Initialize ARC creator.
         
         Args:
-            rocrate_path: Path to ro-crate-metadata.json file
+            rocrate_path: Path to ro-crate-metadata.json file (optional)
         """
         self.rocrate_path = rocrate_path
-        self.output_dir = rocrate_path.parent
+        self.output_dir = rocrate_path.parent if rocrate_path else Path('.')
         self.arc_identifier = None
         
     def create_arc(self) -> ARC:
@@ -33,6 +34,47 @@ class ARCCreator:
         with open(self.rocrate_path, 'r', encoding='utf-8') as f:
             rocrate_json_string = f.read()
             rocrate_data = json.loads(rocrate_json_string)
+        
+        # Create ARC from RO-Crate JSON using ARCtrl
+        arc = ARC.from_rocrate_json_string(rocrate_json_string)
+        
+        # ARCtrl's from_rocrate_json_string doesn't automatically map date fields
+        # So we need to manually set them from the RO-Crate metadata
+        investigation_entity = next(
+            (e for e in rocrate_data.get('@graph', []) if e.get('@id') == './'),
+            None
+        )
+        
+        if investigation_entity:
+            # Set dates if they exist in the RO-Crate
+            if 'submissionDate' in investigation_entity:
+                arc.SubmissionDate = investigation_entity['submissionDate']
+            if 'publicReleaseDate' in investigation_entity:
+                arc.PublicReleaseDate = investigation_entity['publicReleaseDate']
+                
+            # Add DOI as comment
+            original_identifier = investigation_entity.get('identifier', '')
+            if original_identifier:
+                from arctrl import Comment
+                doi_comment = Comment('DOI', original_identifier)
+                arc.Comments.append(doi_comment)
+                
+            # Handle Organization creators (ARCtrl only maps Person, not Organization)
+            # Convert Organizations to Person contacts
+            self._add_organization_contacts(arc, investigation_entity, rocrate_data)
+        
+    def create_arc_from_dict(self, rocrate_data: dict) -> ARC:
+        """Create ARC from RO-Crate metadata dictionary.
+        
+        Args:
+            rocrate_data: RO-Crate metadata dictionary
+            
+        Returns:
+            ARC object
+        """
+        # Convert dict to JSON string
+        import json
+        rocrate_json_string = json.dumps(rocrate_data)
         
         # Create ARC from RO-Crate JSON using ARCtrl
         arc = ARC.from_rocrate_json_string(rocrate_json_string)
@@ -100,8 +142,7 @@ class ARCCreator:
                     
                     if isinstance(contact_point, str) and contact_point:
                         # Extract name and email from contactPoint
-                        import re
-                        match = re.match(r'^(.+?)\s*\(([^)]+)\)$', contact_point)
+                        # match = re.match(r'^(.+?)\s*\(([^)]+)\)$', contact_point)
                         if match:
                             full_name = match.group(1).strip()
                             email = match.group(2).strip()
